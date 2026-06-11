@@ -1,6 +1,6 @@
 {
   "name": "patch",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "main": "dist/main.js",
   "scripts": {
@@ -16,25 +16,34 @@
     "appId": "com.patch.editor",
     "productName": "Patch",
     "files": [
-      "dist/**/*"
+      "dist/**/*",
+      "node_modules/node-pty/**/*"
     ],
     "extraMetadata": {
       "main": "dist/main.js"
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "category": "Development",
       "icon": null
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "category": "public.app-category.developer-tools"
     },
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "asar": true,
-    "asarUnpack": ["node_modules/node-pty/**"]
+    "asarUnpack": [
+      "node_modules/node-pty/**"
+    ]
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -49,7 +58,7 @@
   "devDependencies": {
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
-    "electron": "^42.3.3",
+    "electron": "^42.4.0",
     "electron-builder": "^26.8.1",
     "esbuild": "^0.28.0",
     "typescript": "^6.0.3"

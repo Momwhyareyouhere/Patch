@@ -87,7 +87,7 @@ function createWindow() {
     {
       label: 'Help',
       submenu: [
-        { label: 'About Patch', click: () => { dialog.showMessageBox(mainWindow!, { type: 'info', title: 'About Patch', message: 'Patch v1.0.0', detail: 'A lightweight code editor built with Electron, Monaco Editor, and React.\n\nCreated by Momwhyareyouhere.' }); } },
+        { label: 'About Patch', click: () => { dialog.showMessageBox(mainWindow!, { type: 'info', title: 'About Patch', message: 'Patch v1.0.1', detail: 'A lightweight code editor built with Electron, Monaco Editor, and React.\n\nCreated by Momwhyareyouhere.' }); } },
         { label: 'Keyboard Shortcuts', click: () => mainWindow?.webContents.send('menu-shortcuts') },
       ],
     },
