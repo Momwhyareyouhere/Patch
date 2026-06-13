@@ -157,6 +157,8 @@ export default function SettingsPanel({ settings, onChange, onClose, isOpen }: P
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic</option>
               <option value="openrouter">OpenRouter</option>
+              <option value="gemini">Google Gemini</option>
+              <option value="deepseek">DeepSeek</option>
               <option value="opencode">OpenCode (via OpenRouter)</option>
               <option value="ollama">Ollama (Local)</option>
               <option value="custom">Custom</option>

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 contextBridge.exposeInMainWorld('api', {
   dialog: {
@@ -12,13 +12,28 @@ contextBridge.exposeInMainWorld('api', {
     createDirectory: (parentPath: string, name: string) => ipcRenderer.invoke('fs:createDirectory', parentPath, name),
     deleteEntry: (entryPath: string) => ipcRenderer.invoke('fs:deleteEntry', entryPath),
     renameEntry: (oldPath: string, newName: string) => ipcRenderer.invoke('fs:renameEntry', oldPath, newName),
+    moveEntry: (srcPath: string, destDir: string) => ipcRenderer.invoke('fs:moveEntry', srcPath, destDir),
     searchFiles: (rootPath: string, query: string, pattern: string) => ipcRenderer.invoke('fs:searchFiles', rootPath, query, pattern),
+    watchFolder: (dirPath: string) => ipcRenderer.invoke('fs:watchFolder', dirPath),
     getFileContent: (filePath: string) => ipcRenderer.invoke('fs:getFileContent', filePath),
+    copyFile: (src: string, dest: string) => ipcRenderer.invoke('fs:copyFile', src, dest),
   },
   git: {
     status: (dir: string) => ipcRenderer.invoke('git:status', dir),
     branch: (dir: string) => ipcRenderer.invoke('git:branch', dir),
     log: (dir: string) => ipcRenderer.invoke('git:log', dir),
+    add: (dir: string, filePath: string) => ipcRenderer.invoke('git:add', dir, filePath),
+    unstage: (dir: string, filePath: string) => ipcRenderer.invoke('git:unstage', dir, filePath),
+    commit: (dir: string, message: string) => ipcRenderer.invoke('git:commit', dir, message),
+    diff: (dir: string, filePath: string, staged: boolean) => ipcRenderer.invoke('git:diff', dir, filePath, staged),
+    push: (dir: string) => ipcRenderer.invoke('git:push', dir),
+    pull: (dir: string) => ipcRenderer.invoke('git:pull', dir),
+  },
+  file: {
+    getPath: (file: File) => webUtils.getPathForFile(file),
+  },
+  app: {
+    setTitle: (title: string) => ipcRenderer.invoke('app:setTitle', title),
   },
   settings: {
     load: () => ipcRenderer.invoke('settings:load'),
@@ -44,6 +59,11 @@ contextBridge.exposeInMainWorld('api', {
     chat: (messages: any[], aiSettings: any, rootPath?: string | null) => ipcRenderer.invoke('ai:chat', messages, aiSettings, rootPath),
     loadMessages: () => ipcRenderer.invoke('ai:loadMessages'),
     saveMessages: (messages: any[]) => ipcRenderer.invoke('ai:saveMessages', messages),
+  },
+  plugins: {
+    scan: () => ipcRenderer.invoke('plugins:scan'),
+    read: (pluginPath: string) => ipcRenderer.invoke('plugins:read', pluginPath),
+    exec: (command: string) => ipcRenderer.invoke('plugins:exec', command),
   },
   on: (channel: string, callback: (...args: any[]) => void) => {
     const validChannels = [

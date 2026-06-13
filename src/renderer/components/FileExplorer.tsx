@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { FileNode, GitFile } from '../types';
 
+let clipboard: { path: string; operation: 'copy' | 'cut' } | null = null;
+
 interface Props {
   nodes: FileNode[];
   rootPath: string;
@@ -9,6 +11,8 @@ interface Props {
   onCreateDirectory: (parentPath: string, name: string) => void;
   onDelete: (path: string) => void;
   onRename: (oldPath: string, newName: string) => void;
+  onMoveFile: (srcPath: string, destDir: string) => Promise<void>;
+  onRefresh: () => void;
   activeFilePath: string | null;
   gitFiles: GitFile[];
 }
@@ -84,15 +88,29 @@ function GitStatusIcon({ status }: { status: string }) {
   );
 }
 
+async function pasteTo(path: string, rootPath: string) {
+  if (!clipboard) return;
+  const destPath = path + '/' + clipboard.path.split('/').pop();
+  if (clipboard.operation === 'copy') {
+    await window.api.fs.copyFile(clipboard.path, destPath);
+  } else {
+    const result = await window.api.fs.moveEntry(clipboard.path, path);
+    clipboard = null;
+  }
+}
+
 function TreeNode({
   node, depth, onOpenFile, onCreateFile, onCreateDirectory, onDelete, onRename,
-  activeFilePath, rootPath, gitFiles,
+  activeFilePath, rootPath, gitFiles, onMoveFile, onRefresh, onClipChange,
 }: {
   node: FileNode; depth: number; onOpenFile: (path: string) => void;
   onCreateFile: (parentPath: string, name: string) => void;
   onCreateDirectory: (parentPath: string, name: string) => void;
   onDelete: (path: string) => void; onRename: (oldPath: string, newName: string) => void;
   activeFilePath: string | null; rootPath: string; gitFiles: GitFile[];
+  onMoveFile: (srcPath: string, destDir: string) => Promise<void>;
+  onRefresh: () => void;
+  onClipChange: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -104,14 +122,16 @@ function TreeNode({
 
   const isActive = activeFilePath === node.path;
   const gitStatus = node.type === 'file' ? getGitStatus(node.path, gitFiles, rootPath) : '';
+  const isDir = node.type === 'directory';
 
   const paddingLeft = 12 + depth * 16;
+
+  const closeMenu = () => setShowMenu(false);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
     setMenuPos({ x: e.clientX, y: e.clientY });
     setShowMenu(true);
-    window.addEventListener('click', () => setShowMenu(false), { once: true });
   };
 
   const handleRename = async () => {
@@ -121,21 +141,57 @@ function TreeNode({
 
   const handleCreate = async () => {
     if (!newName) return;
-    if (creating === 'file') await onCreateFile(node.type === 'directory' ? node.path : rootPath, newName);
-    else await onCreateDirectory(node.type === 'directory' ? node.path : rootPath, newName);
+    const parent = isDir ? node.path : node.path.split('/').slice(0, -1).join('/');
+    if (creating === 'file') await onCreateFile(parent, newName);
+    else await onCreateDirectory(parent, newName);
     setCreating(null); setNewName(''); setExpanded(true);
   };
 
+  const isCut = clipboard?.path === node.path && clipboard?.operation === 'cut';
+
+  const handleCopy = () => {
+    clipboard = { path: node.path, operation: 'copy' };
+    closeMenu();
+    onClipChange();
+  };
+
+  const handleCut = () => {
+    clipboard = { path: node.path, operation: 'cut' };
+    closeMenu();
+    onClipChange();
+  };
+
+  const handlePaste = async () => {
+    if (!clipboard) return;
+    const destDir = isDir ? node.path : node.path.split('/').slice(0, -1).join('/') || rootPath;
+    const name = clipboard.path.split('/').pop()!;
+    const destPath = destDir + '/' + name;
+    if (clipboard.operation === 'copy') {
+      await window.api.fs.copyFile(clipboard.path, destPath);
+    } else {
+      await onMoveFile(clipboard.path, destDir);
+      clipboard = null;
+      onClipChange();
+    }
+    onRefresh();
+    closeMenu();
+  };
+
+  const handleDelete = async () => {
+    await onDelete(node.path);
+    closeMenu();
+  };
+
   return (
-    <div>
+    <>
       <div
-        className={`tree-node ${isActive ? 'active' : ''}`}
+        className={`tree-node ${isActive ? 'active' : ''} ${isCut ? 'cut' : ''}`}
         style={{ paddingLeft }}
         onDoubleClick={() => node.type === 'file' && onOpenFile(node.path)}
         onContextMenu={handleContextMenu}
       >
-        <span className={`tree-arrow ${expanded ? 'expanded' : ''}`} onClick={() => node.type === 'directory' && setExpanded(!expanded)}>
-          {node.type === 'directory' && (
+        <span className={`tree-arrow ${expanded ? 'expanded' : ''}`} onClick={() => isDir && setExpanded(!expanded)}>
+          {isDir && (
             <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M6 4l4 4-4 4" /></svg>
           )}
         </span>
@@ -153,19 +209,23 @@ function TreeNode({
         </span>
         {showMenu && (
           <div className="context-menu" style={{ left: menuPos.x, top: menuPos.y }} onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => { setEditing(true); setShowMenu(false); }}>Rename</button>
-            <button onClick={() => { onDelete(node.path); setShowMenu(false); }}>Delete</button>
-            {node.type === 'directory' && (
+            <button onClick={handleCopy}>Copy</button>
+            <button onClick={handleCut}>Cut</button>
+            {clipboard && <button onClick={handlePaste}>Paste</button>}
+            <div className="menu-divider" />
+            <button onClick={() => { setEditing(true); closeMenu(); }}>Rename</button>
+            <button onClick={handleDelete}>Delete</button>
+            {isDir && (
               <>
                 <div className="menu-divider" />
-                <button onClick={() => { setCreating('file'); setShowMenu(false); }}>New File</button>
-                <button onClick={() => { setCreating('dir'); setShowMenu(false); }}>New Folder</button>
+                <button onClick={() => { setCreating('file'); closeMenu(); setExpanded(true); }}>New File</button>
+                <button onClick={() => { setCreating('dir'); closeMenu(); setExpanded(true); }}>New Folder</button>
               </>
             )}
           </div>
         )}
       </div>
-      {node.type === 'directory' && expanded && node.children && (
+      {isDir && expanded && node.children && (
         <>
           {creating && (
             <div className="tree-node" style={{ paddingLeft: paddingLeft + 16 }}>
@@ -180,17 +240,56 @@ function TreeNode({
           {node.children.map((child) => (
             <TreeNode key={child.path} node={child} depth={depth + 1}
               onOpenFile={onOpenFile} onCreateFile={onCreateFile} onCreateDirectory={onCreateDirectory}
-              onDelete={onDelete} onRename={onRename} activeFilePath={activeFilePath} rootPath={rootPath} gitFiles={gitFiles} />
+              onDelete={onDelete} onRename={onRename} activeFilePath={activeFilePath} rootPath={rootPath} gitFiles={gitFiles}
+              onMoveFile={onMoveFile} onRefresh={onRefresh} onClipChange={onClipChange} />
           ))}
         </>
       )}
-    </div>
+    </>
   );
 }
 
 export default function FileExplorer(props: Props) {
+  const [showRootMenu, setShowRootMenu] = useState(false);
+  const [rootMenuPos, setRootMenuPos] = useState({ x: 0, y: 0 });
+  const [rootCreating, setRootCreating] = useState<'file' | 'dir' | null>(null);
+  const [rootNewName, setRootNewName] = useState('');
+  const [clipKey, setClipKey] = useState(0);
+  const bumpClip = () => setClipKey(v => v + 1);
+
+  const handleRootContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setRootMenuPos({ x: e.clientX, y: e.clientY });
+    setShowRootMenu(true);
+  };
+
+  const handleRootCreate = async () => {
+    if (!rootNewName) return;
+    if (rootCreating === 'file') await props.onCreateFile(props.rootPath, rootNewName);
+    else await props.onCreateDirectory(props.rootPath, rootNewName);
+    setRootCreating(null); setRootNewName('');
+  };
+
+  const handleRootPaste = async () => {
+    if (!clipboard) return;
+    const name = clipboard.path.split('/').pop()!;
+    const destPath = props.rootPath + '/' + name;
+    if (clipboard.operation === 'copy') {
+      await window.api.fs.copyFile(clipboard.path, destPath);
+      props.onRefresh();
+    } else {
+      await props.onMoveFile(clipboard.path, props.rootPath);
+      clipboard = null;
+      bumpClip();
+    }
+    setShowRootMenu(false);
+  };
+
   return (
-    <div className="file-explorer">
+    <div
+      className="file-explorer"
+      onContextMenu={handleRootContextMenu}
+    >
       {props.nodes.length === 0 ? (
         <div className="empty-tree">No files in directory</div>
       ) : (
@@ -198,8 +297,27 @@ export default function FileExplorer(props: Props) {
           <TreeNode key={node.path} node={node} depth={0}
             onOpenFile={props.onOpenFile} onCreateFile={props.onCreateFile}
             onCreateDirectory={props.onCreateDirectory} onDelete={props.onDelete} onRename={props.onRename}
-            activeFilePath={props.activeFilePath} rootPath={props.rootPath} gitFiles={props.gitFiles} />
+            activeFilePath={props.activeFilePath} rootPath={props.rootPath} gitFiles={props.gitFiles}
+            onMoveFile={props.onMoveFile} onRefresh={props.onRefresh} onClipChange={bumpClip} />
         ))
+      )}
+      {rootCreating && (
+        <div className="tree-node" style={{ paddingLeft: 12 }}>
+          <span className="tree-icon">
+            <FileIcon name={rootCreating === 'dir' ? 'folder' : 'file'} type={rootCreating === 'dir' ? 'directory' : 'file'} />
+            <input className="inline-input" value={rootNewName} onChange={(e) => setRootNewName(e.target.value)}
+              onBlur={handleRootCreate} onKeyDown={(e) => e.key === 'Enter' && handleRootCreate()}
+              placeholder={rootCreating === 'file' ? 'filename.ext' : 'folder name'} autoFocus onClick={(e) => e.stopPropagation()} />
+          </span>
+        </div>
+      )}
+      {showRootMenu && (
+        <div className="context-menu" style={{ left: rootMenuPos.x, top: rootMenuPos.y }} onClick={(e) => e.stopPropagation()}>
+          {clipboard && <button onClick={handleRootPaste}>Paste</button>}
+          {clipboard && <div className="menu-divider" />}
+          <button onClick={() => { setRootCreating('file'); setShowRootMenu(false); }}>New File</button>
+          <button onClick={() => { setRootCreating('dir'); setShowRootMenu(false); }}>New Folder</button>
+        </div>
       )}
     </div>
   );

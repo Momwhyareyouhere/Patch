@@ -13,8 +13,8 @@ let currentRootPath: string | null = null;
 const SETTINGS_PATH = join(homedir(), '.patch-settings.json');
 const AI_MESSAGES_PATH = join(homedir(), '.patch-ai-messages.json');
 
-function createWindow() {
-  mainWindow = new BrowserWindow({
+function createMainWindow() {
+  const win = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 800,
@@ -30,7 +30,13 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadFile(join(__dirname, 'renderer/index.html'));
+  win.loadFile(join(__dirname, 'renderer/index.html'));
+  win.webContents.on('will-navigate', (event) => event.preventDefault());
+  return win;
+}
+
+function createWindow() {
+  mainWindow = createMainWindow();
 
   const menuTemplate: Electron.MenuItemConstructorOptions[] = [
     {
@@ -41,7 +47,7 @@ function createWindow() {
         { label: 'Save All', accelerator: 'CmdOrCtrl+Shift+S', click: () => mainWindow?.webContents.send('menu-save-all') },
         { type: 'separator' },
         { label: 'New File', accelerator: 'CmdOrCtrl+N', click: () => mainWindow?.webContents.send('menu-new-file') },
-        { label: 'New Window', accelerator: 'CmdOrCtrl+Shift+N', click: () => mainWindow?.webContents.send('menu-new-window') },
+        { label: 'New Window', accelerator: 'CmdOrCtrl+Shift+N', click: () => { const w = createMainWindow(); w.on('closed', () => mainWindow?.focus()); } },
         { type: 'separator' },
         { label: 'Close Tab', accelerator: 'CmdOrCtrl+W', click: () => mainWindow?.webContents.send('menu-close-tab') },
         { type: 'separator' },
@@ -224,7 +230,7 @@ async function loadSettings(): Promise<any> {
       ai: {
         provider: 'opencode', apiKey: '',
         endpoint: 'https://opencode.ai/zen/v1/chat/completions', model: 'deepseek-v4-flash-free',
-        systemPrompt: 'You are a helpful AI assistant integrated into a code editor. You have access to tools: read files, write files, run shell commands, list directories, delete files, launch apps, and search the web. Use tools when they would be helpful. Be concise and provide code examples when relevant.',
+        systemPrompt: 'You are a concise AI coding assistant. Do the task and reply in as few words as possible. Never include "how to run" instructions, feature lists, pleasantries, or follow-up questions like "let me know if you want changes". Just state what was done and show the relevant code if needed. Use markdown only for code blocks — no headings, no lists, no formatting fluff.',
         temperature: 0.7, maxTokens: 4096, toolsEnabled: true,
       },
     };
@@ -281,6 +287,11 @@ ipcMain.handle('fs:getFileTree', async (_event, dirPath: string, showHidden?: bo
   return getFileTree(dirPath, showHidden);
 });
 
+ipcMain.handle('fs:watchFolder', async (_event, dirPath: string) => {
+  setupFileWatcher(dirPath);
+  return true;
+});
+
 ipcMain.handle('fs:readFile', async (_event, filePath: string) => {
   const ext = extname(filePath).toLowerCase();
   if (['.png', '.jpg', '.jpeg', '.gif', '.ico', '.webp', '.bmp'].includes(ext)) {
@@ -323,12 +334,28 @@ ipcMain.handle('fs:renameEntry', async (_event, oldPath: string, newName: string
   return { path: newPath, name: newName };
 });
 
+ipcMain.handle('fs:moveEntry', async (_event, srcPath: string, destDir: string) => {
+  const { rename } = await import('fs/promises');
+  const name = basename(srcPath);
+  const destPath = join(destDir, name);
+  await rename(srcPath, destPath);
+  return { path: destPath, name };
+});
+
 ipcMain.handle('fs:searchFiles', async (_event, rootPath: string, query: string, pattern: string) => {
   return searchInFiles(rootPath, query, pattern);
 });
 
 ipcMain.handle('fs:getFileContent', async (_event, filePath: string) => {
   return readFile(filePath, 'utf-8');
+});
+
+ipcMain.handle('fs:copyFile', async (_event, src: string, dest: string) => {
+  const { copyFile, mkdir } = await import('fs/promises');
+  const { dirname } = await import('path');
+  await mkdir(dirname(dest), { recursive: true });
+  await copyFile(src, dest);
+  return true;
 });
 
 
@@ -358,6 +385,49 @@ ipcMain.handle('git:log', async (_event, dir: string) => {
       return { hash, message: msg.join(' ') };
     });
   } catch { return []; }
+});
+
+ipcMain.handle('git:add', async (_event, dir: string, filePath: string) => {
+  try {
+    await runGitCommand(dir, `git add "${filePath}"`);
+    return true;
+  } catch { return false; }
+});
+
+ipcMain.handle('git:unstage', async (_event, dir: string, filePath: string) => {
+  try {
+    await runGitCommand(dir, `git restore --staged "${filePath}"`);
+    return true;
+  } catch { return false; }
+});
+
+ipcMain.handle('git:commit', async (_event, dir: string, message: string) => {
+  try {
+    const result = await runGitCommand(dir, `git commit -m "${message.replace(/"/g, '\\"')}"`);
+    return result || 'Commit successful';
+  } catch { return 'Commit failed'; }
+});
+
+ipcMain.handle('git:diff', async (_event, dir: string, filePath: string, staged: boolean) => {
+  try {
+    const flag = staged ? '--cached' : '';
+    const output = await runGitCommand(dir, `git diff ${flag} -- "${filePath}"`);
+    return output || '(no changes)';
+  } catch { return 'Diff failed'; }
+});
+
+ipcMain.handle('git:push', async (_event, dir: string) => {
+  try {
+    const result = await runGitCommand(dir, 'git push');
+    return result || 'Push successful';
+  } catch { return 'Push failed'; }
+});
+
+ipcMain.handle('git:pull', async (_event, dir: string) => {
+  try {
+    const result = await runGitCommand(dir, 'git pull');
+    return result || 'Pull successful';
+  } catch { return 'Pull failed'; }
 });
 
 
@@ -687,6 +757,65 @@ ipcMain.handle('ai:chat', async (_event, messages: any[], aiSettings: any, rootP
 
 
 
+
+const PLUGINS_DIR = join(homedir(), '.patch', 'plugins');
+
+ipcMain.handle('plugins:scan', async () => {
+  const plugins: any[] = [];
+  try {
+    const initPath = join(homedir(), '.patch', 'init.js');
+    const { stat } = await import('fs/promises');
+    await stat(initPath);
+    plugins.push({ id: '__init__', name: 'init.js', version: '1.0.0', description: 'User init script', path: initPath, type: 'init', enabled: true });
+  } catch {}
+
+  try {
+    const { readdir, stat } = await import('fs/promises');
+    const { readFile } = await import('fs/promises');
+    let entries: string[] = [];
+    try { entries = await readdir(PLUGINS_DIR); } catch {}
+    for (const entry of entries) {
+      const pluginDir = join(PLUGINS_DIR, entry);
+      const manifestPath = join(pluginDir, 'manifest.json');
+      const indexPath = join(pluginDir, 'index.js');
+      try {
+        await stat(manifestPath);
+        await stat(indexPath);
+        const manifest = JSON.parse(await readFile(manifestPath, 'utf-8'));
+        plugins.push({
+          id: entry,
+          name: manifest.name || entry,
+          version: manifest.version || '1.0.0',
+          description: manifest.description || '',
+          path: indexPath,
+          type: 'plugin',
+          enabled: true,
+        });
+      } catch {}
+    }
+  } catch {}
+  return plugins;
+});
+
+ipcMain.handle('plugins:read', async (_event, pluginPath: string) => {
+  try {
+    const { readFile } = await import('fs/promises');
+    return await readFile(pluginPath, 'utf-8');
+  } catch { return null; }
+});
+
+ipcMain.handle('plugins:exec', async (_event, command: string) => {
+  return new Promise<string>((resolve) => {
+    exec(command, { timeout: 15000, cwd: currentRootPath || process.cwd() }, (err, stdout, stderr) => {
+      if (err) resolve(stderr || err.message || 'Command failed');
+      else resolve(stdout || '(no output)');
+    });
+  });
+});
+
+ipcMain.handle('app:setTitle', async (_event, title: string) => {
+  if (mainWindow) mainWindow.setTitle(title);
+});
 
 ipcMain.handle('settings:load', async () => loadSettings());
 ipcMain.handle('settings:save', async (_event, settings: any) => {

@@ -219,6 +219,73 @@ export default function AIPanel({ settings, rootPath, onSettingsChange, onInsert
   );
 }
 
+function renderInline(text: string): (string | React.ReactNode)[] {
+  const parts: (string | React.ReactNode)[] = [];
+  const regex = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*]+\*)/g;
+  let last = 0, match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > last) parts.push(text.slice(last, match.index));
+    if (match[1]) parts.push(<code key={last} className="ai-inline-code">{match[1].slice(1, -1)}</code>);
+    else if (match[2]) parts.push(<strong key={last}>{match[2].slice(2, -2)}</strong>);
+    else if (match[3]) parts.push(<em key={last}>{match[3].slice(1, -1)}</em>);
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
+
+function renderMarkdown(text: string): React.ReactNode[] {
+  const lines = text.split('\n');
+  const nodes: React.ReactNode[] = [];
+  let inList: 'ul' | 'ol' | null = null;
+  let listItems: React.ReactNode[] = [];
+
+  const flushList = (key: number) => {
+    if (inList && listItems.length > 0) {
+      const Tag = inList === 'ul' ? 'ul' : 'ol';
+      nodes.push(<Tag key={key} className="ai-md-list">{listItems}</Tag>);
+      listItems = [];
+      inList = null;
+    }
+  };
+
+  let key = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    key++;
+
+    if (!trimmed) { flushList(key); nodes.push(<br key={key} />); continue; }
+
+    if (/^#{1,6}\s/.test(trimmed)) {
+      flushList(key);
+      const level = trimmed.match(/^#+/)![0].length;
+      const content = trimmed.replace(/^#+\s*/, '');
+      const Tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+      nodes.push(<Tag key={key} className="ai-md-heading">{renderInline(content)}</Tag>);
+      continue;
+    }
+
+    if (/^- /.test(trimmed)) {
+      if (inList !== 'ul') { flushList(key); inList = 'ul'; }
+      listItems.push(<li key={key}>{renderInline(trimmed.slice(2))}</li>);
+      continue;
+    }
+
+    if (/^\d+\. /.test(trimmed)) {
+      if (inList !== 'ol') { flushList(key); inList = 'ol'; }
+      listItems.push(<li key={key}>{renderInline(trimmed.replace(/^\d+\.\s*/, ''))}</li>);
+      continue;
+    }
+
+    flushList(key);
+    nodes.push(<p key={key} className="ai-text-block">{renderInline(line)}</p>);
+  }
+  flushList(key + 1);
+
+  return nodes;
+}
+
 function MessageContent({ content, onCopy, onInsert }: { content: string; onCopy: (code: string) => void; onInsert?: (code: string) => void }) {
   const parts: { type: 'text' | 'code'; content: string; language?: string }[] = [];
   const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
@@ -264,7 +331,7 @@ function MessageContent({ content, onCopy, onInsert }: { content: string; onCopy
             <pre className="ai-code-pre"><code>{part.content}</code></pre>
           </div>
         ) : (
-          <p key={i} className="ai-text-block">{part.content}</p>
+          renderMarkdown(part.content)
         )
       )}
     </>

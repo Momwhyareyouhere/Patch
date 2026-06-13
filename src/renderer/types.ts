@@ -147,11 +147,11 @@ export const DEFAULT_SETTINGS: EditorSettings = {
   recentFolders: [],
   zenMode: false,
   ai: {
-    provider: 'openai',
+    provider: 'opencode',
     apiKey: '',
-    endpoint: 'https://api.openai.com/v1/chat/completions',
-    model: 'gpt-4o',
-    systemPrompt: 'You are a helpful programming assistant. Provide concise, correct answers with code examples when relevant. You can also read, write files, list directories, and run shell commands to help the user.',
+    endpoint: 'https://opencode.ai/zen/v1/chat/completions',
+    model: 'deepseek-v4-flash-free',
+    systemPrompt: 'You are a concise AI coding assistant. Do the task and reply in as few words as possible. Never include "how to run" instructions, feature lists, pleasantries, or follow-up questions like "let me know if you want changes". Just state what was done and show the relevant code if needed. Use markdown only for code blocks — no headings, no lists, no formatting fluff.',
     temperature: 0.7,
     maxTokens: 4096,
     toolsEnabled: true,
@@ -165,7 +165,62 @@ export interface Command {
   action: () => void;
 }
 
-export type SidebarView = 'explorer' | 'search' | 'outline';
+export type SidebarView = string;
+
+export interface PluginSidebarView {
+  id: string;
+  label: string;
+  icon: string;
+  render: () => string;
+}
+
+export interface PluginInfo {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  path: string;
+  type: 'init' | 'plugin';
+  enabled: boolean;
+}
+
+export interface PatchAPI {
+  editor: {
+    getActiveTab: () => OpenTab | null;
+    getContent: () => string;
+    setContent: (text: string) => void;
+    getSelection: () => any;
+    getMonacoEditor: () => any;
+    createOutputTab: (name: string, content: string, language?: string) => void;
+  };
+  ui: {
+    addStatus: (text: string) => void;
+    registerSidebarView: (id: string, label: string, icon: string, render: () => string) => void;
+  };
+  commands: {
+    register: (id: string, label: string, action: () => void, shortcut?: string) => void;
+  };
+  monaco: any;
+  fs: {
+    readFile: (path: string) => Promise<string>;
+    writeFile: (path: string, content: string) => Promise<boolean>;
+    getFileTree: (dirPath: string, showHidden?: boolean) => Promise<FileNode[]>;
+  };
+  git: {
+    status: (dir: string) => Promise<GitFile[]>;
+    branch: (dir: string) => Promise<string | null>;
+  };
+  exec: (command: string) => Promise<string>;
+  on: (event: string, callback: (...args: any[]) => void) => void;
+  off: (event: string, callback: (...args: any[]) => void) => void;
+  internal: {
+    editorRef: any;
+    rootPath: string | null;
+    fileTree: FileNode[];
+    tabs: OpenTab[];
+    activeTabPath: string | null;
+  };
+}
 
 export interface AIChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -192,6 +247,12 @@ export interface GitFile {
 }
 
 export interface Api {
+  file: {
+    getPath: (file: File) => string;
+  };
+  app: {
+    setTitle: (title: string) => Promise<void>;
+  };
   dialog: { openFolder: () => Promise<string | null> };
   fs: {
     getFileTree: (dirPath: string, showHidden?: boolean) => Promise<FileNode[]>;
@@ -201,13 +262,22 @@ export interface Api {
     createDirectory: (parentPath: string, name: string) => Promise<{ path: string; name: string }>;
     deleteEntry: (entryPath: string) => Promise<boolean>;
     renameEntry: (oldPath: string, newName: string) => Promise<{ path: string; name: string }>;
+    moveEntry: (srcPath: string, destDir: string) => Promise<{ path: string; name: string }>;
     searchFiles: (rootPath: string, query: string, pattern: string) => Promise<SearchResult[]>;
     getFileContent: (filePath: string) => Promise<string>;
+    copyFile: (src: string, dest: string) => Promise<boolean>;
+    watchFolder: (dirPath: string) => Promise<boolean>;
   };
   git: {
     status: (dir: string) => Promise<GitFile[]>;
     branch: (dir: string) => Promise<string | null>;
     log: (dir: string) => Promise<{ hash: string; message: string }[]>;
+    add: (dir: string, filePath: string) => Promise<boolean>;
+    unstage: (dir: string, filePath: string) => Promise<boolean>;
+    commit: (dir: string, message: string) => Promise<string>;
+    diff: (dir: string, filePath: string, staged: boolean) => Promise<string>;
+    push: (dir: string) => Promise<string>;
+    pull: (dir: string) => Promise<string>;
   };
   settings: {
     load: () => Promise<EditorSettings>;
@@ -225,6 +295,11 @@ export interface Api {
     chat: (messages: AIChatMessage[], settings: AISettings, rootPath?: string | null) => Promise<string>;
     loadMessages: () => Promise<any[]>;
     saveMessages: (messages: any[]) => Promise<void>;
+  };
+  plugins: {
+    scan: () => Promise<PluginInfo[]>;
+    read: (pluginPath: string) => Promise<string | null>;
+    exec: (command: string) => Promise<string>;
   };
   on: (channel: string, callback: (...args: any[]) => void) => void;
   removeAllListeners: (channel: string) => void;

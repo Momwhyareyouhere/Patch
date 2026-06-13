@@ -14,7 +14,12 @@ export default function SearchPanel({ rootPath, onOpenFile, onGoToLocation, isAc
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [showReplace, setShowReplace] = useState(false);
+  const [replaceText, setReplaceText] = useState('');
+  const [replacing, setReplacing] = useState<string | null>(null);
   const debounceRef = useRef<any>(null);
+
+  const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   const performSearch = useCallback(async (q: string, p: string) => {
     if (!q.trim()) {
@@ -50,6 +55,41 @@ export default function SearchPanel({ rootPath, onOpenFile, onGoToLocation, isAc
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
+
+  const replaceInFile = useCallback(async (filePath: string) => {
+    if (!query.trim() || !replaceText.trim()) return;
+    setReplacing(filePath);
+    try {
+      const content = await window.api.fs.getFileContent(filePath);
+      const regex = new RegExp(escapeRegex(query), 'gi');
+      const newContent = content.replace(regex, replaceText);
+      if (newContent !== content) {
+        await window.api.fs.writeFile(filePath, newContent);
+        const res = await window.api.fs.searchFiles(rootPath, query, pattern);
+        setResults(res);
+      }
+    } catch {}
+    setReplacing(null);
+  }, [query, replaceText, rootPath, pattern]);
+
+  const replaceAll = useCallback(async () => {
+    if (!query.trim() || !replaceText.trim()) return;
+    const files = Object.keys(groupedResults);
+    setReplacing('all');
+    try {
+      for (const filePath of files) {
+        const content = await window.api.fs.getFileContent(filePath);
+        const regex = new RegExp(escapeRegex(query), 'gi');
+        const newContent = content.replace(regex, replaceText);
+        if (newContent !== content) {
+          await window.api.fs.writeFile(filePath, newContent);
+        }
+      }
+      const res = await window.api.fs.searchFiles(rootPath, query, pattern);
+      setResults(res);
+    } catch {}
+    setReplacing(null);
+  }, [query, replaceText, rootPath, pattern]);
 
   const groupedResults = results.reduce<Record<string, SearchResult[]>>((acc, r) => {
     if (!acc[r.path]) acc[r.path] = [];
@@ -88,7 +128,35 @@ export default function SearchPanel({ rootPath, onOpenFile, onGoToLocation, isAc
             value={pattern}
             onChange={(e) => handlePatternChange(e.target.value)}
           />
+          <button
+            className="search-replace-toggle"
+            onClick={() => setShowReplace((v) => !v)}
+            title="Toggle Replace"
+          >
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" style={{ transform: showReplace ? 'rotate(90deg)' : undefined }}>
+              <path d="M4.646 1.646a.5.5 0 01.708 0l6 6a.5.5 0 010 .708l-6 6a.5.5 0 01-.708-.708L10.293 8 4.646 2.354a.5.5 0 010-.708z" />
+            </svg>
+          </button>
         </div>
+        {showReplace && (
+          <div className="search-replace-row">
+            <input
+              className="search-input"
+              type="text"
+              placeholder="Replace with..."
+              value={replaceText}
+              onChange={(e) => setReplaceText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && replaceAll()}
+            />
+            <button
+              className="search-replace-btn"
+              onClick={replaceAll}
+              disabled={!query.trim() || !replaceText.trim() || results.length === 0 || replacing !== null}
+            >
+              {replacing === 'all' ? '...' : 'Replace All'}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="search-results">
@@ -100,10 +168,7 @@ export default function SearchPanel({ rootPath, onOpenFile, onGoToLocation, isAc
         )}
         {!isSearching && Object.keys(groupedResults).map((filePath) => (
           <div key={filePath} className="search-file-group">
-            <div
-              className="search-file-header"
-              onClick={() => onOpenFile(filePath)}
-            >
+            <div className="search-file-header" onClick={() => onOpenFile(filePath)}>
               <span className="search-file-name">{filePath.split('/').pop()}</span>
               <span className="search-file-path">{filePath.replace(rootPath, '')}</span>
               <span className="search-file-count">{groupedResults[filePath].length}</span>
@@ -120,6 +185,15 @@ export default function SearchPanel({ rootPath, onOpenFile, onGoToLocation, isAc
             ))}
             {groupedResults[filePath].length > 10 && (
               <div className="search-more">+{groupedResults[filePath].length - 10} more matches</div>
+            )}
+            {showReplace && (
+              <button
+                className="search-replace-file-btn"
+                onClick={() => replaceInFile(filePath)}
+                disabled={replacing !== null}
+              >
+                {replacing === filePath ? 'Replacing...' : `Replace ${groupedResults[filePath].length} match${groupedResults[filePath].length > 1 ? 'es' : ''}`}
+              </button>
             )}
           </div>
         ))}

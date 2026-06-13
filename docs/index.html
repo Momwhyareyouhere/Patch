@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patch Plugin API</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --accent3: #d2a8ff;
+    --orange: #d29922;
+    --red: #f85149;
+    --sidebar-w: 260px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    overflow-y: auto;
+    z-index: 10;
+  }
+  .sidebar::-webkit-scrollbar { width: 6px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .sidebar-header {
+    padding: 20px 16px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .sidebar-header p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .sidebar-nav { padding: 8px 0; }
+  .sidebar-nav a {
+    display: block;
+    padding: 6px 16px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color 0.15s;
+  }
+  .sidebar-nav a:hover { color: var(--text); }
+  .sidebar-nav a.active { color: var(--accent); }
+  .sidebar-nav .section-label {
+    padding: 12px 16px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+
+  /* Main */
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    max-width: 900px;
+    padding: 40px 48px 80px;
+  }
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 24px 20px; }
+  }
+
+  h2 {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 40px 0 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  h2:first-of-type { margin-top: 0; }
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 32px 0 8px;
+    color: var(--accent);
+  }
+  h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 24px 0 6px;
+    color: var(--text);
+  }
+  p { margin: 8px 0; font-size: 14px; color: var(--text-muted); }
+  p.lead { font-size: 16px; color: var(--text); }
+
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    font-size: 13px;
+    background: var(--bg3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--accent2);
+  }
+  pre {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 12px 0;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    color: var(--text);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  th, td {
+    padding: 8px 12px;
+    text-align: left;
+    border: 1px solid var(--border);
+  }
+  th {
+    background: var(--bg2);
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+  }
+  td { color: var(--text); }
+  td:first-child code { color: var(--accent); }
+
+  ul, ol { margin: 8px 0; padding-left: 24px; font-size: 14px; color: var(--text-muted); }
+  li { margin: 4px 0; }
+  li code { font-size: 12px; }
+
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 6px;
+  }
+  .badge-api { background: rgba(88, 166, 255, 0.15); color: var(--accent); }
+  .badge-fn { background: rgba(63, 185, 80, 0.15); color: var(--accent2); }
+  .badge-event { background: rgba(210, 168, 255, 0.15); color: var(--accent3); }
+
+  .tip {
+    background: rgba(210, 168, 255, 0.08);
+    border-left: 3px solid var(--accent3);
+    padding: 12px 16px;
+    margin: 16px 0;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  .tip code { background: rgba(210, 168, 255, 0.12); color: var(--accent3); }
+
+  .quickstart-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin: 16px 0;
+  }
+  .quickstart-box h4 { margin-top: 0; color: var(--accent2); }
+  .quickstart-box code { font-size: 13px; }
+  .dir-tree {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 8px 0;
+  }
+
+  .method-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .method-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+  }
+  .method-card h4 { margin: 0 0 4px; font-size: 14px; }
+  .method-card h4 code { font-size: 13px; background: none; padding: 0; color: var(--accent); }
+  .method-card p { font-size: 13px; margin: 0; }
+
+  .footer {
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  /* Highlight target sections */
+  :target {
+    scroll-margin-top: 16px;
+  }
+  :target > h2, :target > h3 {
+    position: relative;
+  }
+  :target > h2::after, :target > h3::after {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <h1>Patch Plugins</h1>
+    <p>API reference v1.0</p>
+  </div>
+  <div class="sidebar-nav">
+    <a href="#quickstart" class="active">Quick Start</a>
+    <a href="#manifest">manifest.json</a>
+
+    <div class="section-label">API Reference</div>
+    <a href="#editor">patch.editor</a>
+    <a href="#ui">patch.ui</a>
+    <a href="#commands">patch.commands</a>
+    <a href="#exec">patch.exec</a>
+    <a href="#fs">patch.fs</a>
+    <a href="#git">patch.git</a>
+    <a href="#monaco">patch.monaco</a>
+    <a href="#events">patch.on / patch.off</a>
+    <a href="#internal">patch.internal</a>
+
+    <div class="section-label">Lifecycle</div>
+    <a href="#lifecycle">Plugin Lifecycle</a>
+
+    <div class="section-label">Examples</div>
+    <a href="#example-gpu">GPU Monitor</a>
+    <a href="#example-hello">Hello World</a>
+    <a href="#example-snippets">Snippet Injector</a>
+    <a href="#example-formatter">JSON Formatter</a>
+
+    <div class="section-label">Guides</div>
+    <a href="#tips">Tips & Patterns</a>
+    <a href="#ideas">Plugin Ideas</a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<div class="main">
+
+<h2 id="quickstart">Quick Start</h2>
+<p class="lead">Plugins let you extend Patch with custom sidebar panels, editor commands, shell integration, and more. Every plugin receives a <code>patch</code> API object.</p>
+
+<div class="quickstart-box">
+<h4>User Script — <code>~/.patch/init.js</code></h4>
+<p>Runs automatically on startup. No manifest needed.</p>
+<pre><code>// ~/.patch/init.js
+patch.ui.addStatus('Hello from init.js');
+patch.commands.register('my-cmd', 'My Command', function() {
+  patch.editor.setContent('Hello from plugin!');
+});</code></pre>
+</div>
+
+<div class="quickstart-box">
+<h4>Shareable Plugin — <code>~/.patch/plugins/&lt;name&gt;/</code></h4>
+<p>Create a folder with two files:</p>
+<div class="dir-tree">~/.patch/plugins/my-plugin/
+├── manifest.json
+└── index.js</div>
+
+<p><strong>manifest.json</strong></p>
+<pre><code>{
+  "id": "my-plugin",
+  "name": "My Plugin",
+  "version": "1.0.0",
+  "description": "Does something cool"
+}</code></pre>
+
+<p><strong>index.js</strong></p>
+<pre><code>function activate(patch) {
+  // Your plugin code here
+  patch.ui.addStatus('Plugin loaded!');
+}</code></pre>
+</div>
+
+<p>Open the <strong>Plugins panel</strong> (<code>Ctrl+Shift+J</code>) to toggle plugins on/off or hit <strong>Reload</strong> to re-scan. Commands appear in the command palette (<code>Ctrl+Shift+P</code>). Sidebar views appear as activity bar buttons.</p>
+
+<h3 id="manifest">manifest.json</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>id</code></td><td>string</td><td>Unique identifier (kebab-case)</td></tr>
+  <tr><td><code>name</code></td><td>string</td><td>Display name</td></tr>
+  <tr><td><code>version</code></td><td>string</td><td>Semver version</td></tr>
+  <tr><td><code>description</code></td><td>string (optional)</td><td>Short description shown in the plugin panel</td></tr>
+</table>
+
+<!-- =============================================================================== -->
+<h2>API Reference</h2>
+
+<!-- patch.editor -->
+<h3 id="editor">patch.editor</h3>
+<p>Control the active editor tab — read/write content, manage tabs, access Monaco directly.</p>
+
+<table>
+  <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
+  <tr><td><code>getActiveTab()</code></td><td><code>OpenTab | null</code></td><td>Currently visible tab object</td></tr>
+  <tr><td><code>getContent()</code></td><td><code>string</code></td><td>Full text of the active editor</td></tr>
+  <tr><td><code>setContent(text)</code></td><td><code>void</code></td><td>Replace editor content entirely</td></tr>
+  <tr><td><code>getSelection()</code></td><td><code>Selection | null</code></td><td>Monaco selection range</td></tr>
+  <tr><td><code>getMonacoEditor()</code></td><td><code>editor | null</code></td><td>Raw Monaco editor instance for advanced use</td></tr>
+  <tr><td><code>createOutputTab(name, content, language?)</code></td><td><code>void</code></td><td>Open a virtual read-only tab (<code>output://</code> path, save is blocked)</td></tr>
+</table>
+
+<h4>OpenTab shape</h4>
+<pre><code>{
+  path: string;          // Unique path (real fs path or "output://..." for virtual tabs)
+  name: string;          // Display name in the tab bar
+  language: string;      // Monaco language identifier (e.g. "javascript", "json")
+  content: string;       // Current editor content
+  savedContent: string;  // Content at last save (used for dirty detection)
+  isDirty: boolean;      // Whether content differs from savedContent
+}</code></pre>
+
+<div class="method-grid">
+  <div class="method-card">
+    <h4><code>getActiveTab()</code></h4>
+    <p>Get the currently focused tab. Returns <code>null</code> if no tabs are open.</p>
+  </div>
+  <div class="method-card">
+    <h4><code>getContent()</code></h4>
+    <p>Read the full text from the active Monaco editor model.</p>
+  </div>
+  <div class="method-card">
+    <h4><code>setContent(text)</code></h4>
+    <p>Replace the entire editor content. Marks the tab as dirty.</p>
+  </div>
+  <div class="method-card">
+    <h4><code>createOutputTab(name, content, language?)</code></h4>
+    <p>Creates a virtual tab (path <code>output://&lt;name&gt;</code>). If the tab exists, content is replaced. Saves are silently ignored.</p>
+  </div>
+</div>
+
+<pre><code>// Insert text at cursor position
+var ed = patch.editor.getMonacoEditor();
+if (ed) {
+  var sel = ed.getSelection();
+  ed.executeEdits('plugin', [{ range: sel, text: 'Hello!' }]);
+  ed.focus();
+}
+
+// Open a build output tab
+patch.editor.createOutputTab('Build Output',
+  'Compilation successful\n0 errors\n2 warnings',
+  'plaintext'
+);</code></pre>
+
+<div class="tip">
+<strong>Tip:</strong> Use <code>getMonacoEditor()</code> to access the full Monaco API — add keybindings, register providers, manipulate selections, or run any editor action.
+</div>
+
+<!-- patch.ui -->
+<h3 id="ui">patch.ui</h3>
+<p>Surface your plugin in the Patch UI — status bar messages and custom sidebar panels.</p>
+
+<table>
+  <tr><th>Method</th><th>Description</th></tr>
+  <tr><td><code>addStatus(text)</code></td><td>Show a message in the status bar (auto-clears after 3 seconds)</td></tr>
+  <tr><td><code>registerSidebarView(id, label, icon, render)</code></td><td>Register a custom sidebar panel with its own activity bar button</td></tr>
+</table>
+
+<h4><code>registerSidebarView(id, label, icon, render)</code></h4>
+<table>
+  <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>id</code></td><td>string</td><td>Unique view identifier. Used as the sidebar state key.</td></tr>
+  <tr><td><code>label</code></td><td>string</td><td>Tooltip text and sidebar header label.</td></tr>
+  <tr><td><code>icon</code></td><td>string</td><td>Raw SVG markup for the activity bar button (18×18 viewBox recommended).</td></tr>
+  <tr><td><code>render</code></td><td><code>() => string</code></td><td>Called when sidebar is visible. Return HTML string to render.</td></tr>
+</table>
+
+<div class="tip">
+<strong>HTML in sidebar:</strong> The return value of <code>render()</code> is rendered via <code>dangerouslySetInnerHTML</code>. Use <code>var(--text-primary)</code>, <code>var(--text-muted)</code>, <code>var(--border-color)</code>, <code>var(--accent)</code>, and <code>var(--sidebar-bg)</code> CSS variables for theme-compliant styling. Tables, headings, code, links, and paragraphs all work.
+</div>
+
+<pre><code>// Status bar
+patch.ui.addStatus('Plugin initialized');
+
+// Sidebar panel with live data
+var data = { temperature: '--' };
+
+patch.ui.registerSidebarView('sensor-view', 'Sensors',
+  '&lt;svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor"&gt;' +
+  '&lt;circle cx="8" cy="8" r="6"/&gt;&lt;circle cx="8" cy="8" r="2" fill="var(--accent)"/&gt;' +
+  '&lt;/svg&gt;',
+  function() {
+    return '&lt;h3&gt;Temperature&lt;/h3&gt;'
+      + '&lt;p&gt;CPU: &lt;b&gt;' + data.temperature + '&amp;deg;C&lt;/b&gt;&lt;/p&gt;';
+  }
+);
+
+patch.commands.register('start-sensors', 'Start Sensors', function() {
+  setInterval(function() {
+    patch.exec('sensors -j 2>/dev/null | jq -r ".. | .temp1_input? // empty" || echo --')
+      .then(function(v) { data.temperature = v.trim(); });
+  }, 2000);
+});</code></pre>
+
+<!-- patch.commands -->
+<h3 id="commands">patch.commands</h3>
+<p>Register commands that appear in the command palette (<code>Ctrl+Shift+P</code>).</p>
+
+<table>
+  <tr><th>Method</th><th>Description</th></tr>
+  <tr><td><code>register(id, label, action, shortcut?)</code></td><td>Register a command. <code>id</code> must be unique — duplicate ids are silently ignored.</td></tr>
+</table>
+
+<table>
+  <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>id</code></td><td>string</td><td>Unique command ID (kebab-case)</td></tr>
+  <tr><td><code>label</code></td><td>string</td><td>Display name in the palette</td></tr>
+  <tr><td><code>action</code></td><td><code>() => void</code></td><td>Called when the user selects the command</td></tr>
+  <tr><td><code>shortcut</code></td><td>string (optional)</td><td>Keyboard shortcut hint (display only — does not bind the key)</td></tr>
+</table>
+
+<pre><code>patch.commands.register('hello-world', 'Say Hello', function() {
+  patch.ui.addStatus('Hello, world!');
+});</code></pre>
+
+<!-- patch.exec -->
+<h3 id="exec">patch.exec</h3>
+<p>Run shell commands. Executes in the main process via <code>child_process.exec</code>.</p>
+
+<table>
+  <tr><th>Signature</th><th>Returns</th></tr>
+  <tr><td><code>patch.exec(command: string)</code></td><td><code>Promise&lt;string&gt;</code> — stdout of the command</td></tr>
+</table>
+
+<pre><code>// Get disk usage
+patch.exec('df -h / | tail -1').then(function(out) {
+  patch.ui.addStatus('Disk: ' + out.trim());
+});
+
+// Handle errors gracefully
+patch.exec('which nvidia-smi 2>/dev/null || echo "not found"')
+  .then(function(out) {
+    if (out.trim() === 'not found') {
+      patch.ui.addStatus('No NVIDIA GPU detected');
+    }
+  });</code></pre>
+
+<div class="tip">
+<strong>Tip:</strong> Append <code>2>/dev/null || echo "fallback"</code> to avoid unhandled promise rejections from commands that fail.
+</div>
+
+<!-- patch.fs -->
+<h3 id="fs">patch.fs</h3>
+<p>Read and write files on disk, get directory trees.</p>
+
+<table>
+  <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
+  <tr><td><code>readFile(path)</code></td><td><code>Promise&lt;string&gt;</code></td><td>Read file contents as a string</td></tr>
+  <tr><td><code>writeFile(path, content)</code></td><td><code>Promise&lt;boolean&gt;</code></td><td>Write content to a file (creates/overwrites)</td></tr>
+  <tr><td><code>getFileTree(dirPath, showHidden?)</code></td><td><code>Promise&lt;FileNode[]&gt;</code></td><td>Recursive directory listing</td></tr>
+</table>
+
+<h4>FileNode shape</h4>
+<pre><code>{
+  path: string;
+  name: string;
+  type: 'file' | 'directory';
+  children?: FileNode[];  // Only for directories
+}</code></pre>
+
+<pre><code>// Save plugin data
+patch.fs.writeFile('/home/user/.patch/data.json',
+  JSON.stringify({ lastRun: Date.now() })
+);
+
+// Read it back
+patch.fs.readFile('/home/user/.patch/data.json').then(function(data) {
+  var config = JSON.parse(data);
+  console.log(config.lastRun);
+});</code></pre>
+
+<!-- patch.git -->
+<h3 id="git">patch.git</h3>
+<p>Query git repository status. Operates on the currently opened folder.</p>
+
+<table>
+  <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
+  <tr><td><code>status(dir)</code></td><td><code>Promise&lt;GitFile[]&gt;</code></td><td>List of changed files with their status</td></tr>
+  <tr><td><code>branch(dir)</code></td><td><code>Promise&lt;string | null&gt;</code></td><td>Current branch name (or null if not a git repo)</td></tr>
+</table>
+
+<h4>GitFile shape</h4>
+<pre><code>{ path: string; status: string }
+// status values: M (modified), A (added), D (deleted), R (renamed), ?? (untracked)</code></pre>
+
+<pre><code>var root = patch.internal.rootPath;
+if (root) {
+  patch.git.status(root).then(function(files) {
+    patch.ui.addStatus(files.length + ' changed files');
+  });
+  patch.git.branch(root).then(function(branch) {
+    if (branch) patch.ui.addStatus('On branch: ' + branch);
+  });
+}</code></pre>
+
+<!-- patch.monaco -->
+<h3 id="monaco">patch.monaco</h3>
+<p>Access the raw Monaco editor global for advanced editor customization — register languages, themes, providers, actions, and keybindings.</p>
+
+<pre><code>// Register a hover provider for JavaScript
+var monaco = patch.monaco;
+if (monaco) {
+  monaco.languages.registerHoverProvider('javascript', {
+    provideHover: function(model, position) {
+      return {
+        contents: [{ value: '**Hello from plugin!**' }]
+      };
+    }
+  });
+}
+
+// Register a custom action
+monaco.editor.registerEditorAction({
+  id: 'plugin-uppercase',
+  label: 'Uppercase Selection',
+  keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyU],
+  run: function(ed) {
+    var sel = ed.getSelection();
+    var text = ed.getModel().getValueInRange(sel);
+    ed.executeEdits('plugin', [{ range: sel, text: text.toUpperCase() }]);
+  }
+});</code></pre>
+
+<div class="tip">
+<strong>Note:</strong> <code>patch.monaco</code> is a getter that returns <code>window.monaco</code>. It's available immediately since Monaco loads before plugins execute.
+</div>
+
+<!-- patch.on / patch.off -->
+<h3 id="events">patch.on / patch.off</h3>
+<p>Subscribe to editor lifecycle events.</p>
+
+<table>
+  <tr><th>Method</th><th>Description</th></tr>
+  <tr><td><code>patch.on(event, callback)</code></td><td>Subscribe to an event</td></tr>
+  <tr><td><code>patch.off(event, callback)</code></td><td>Unsubscribe from an event</td></tr>
+</table>
+
+<table>
+  <tr><th>Event</th><th>Arguments</th><th>Description</th></tr>
+  <tr><td><code>'file:open'</code></td><td><code>(path, fileInfo)</code></td><td>Fired when a file is opened in the editor. <code>fileInfo</code>: <code>{ path, name, language, content }</code></td></tr>
+  <tr><td><code>'file:save'</code></td><td><code>(path, content)</code></td><td>Fired when a file is saved to disk</td></tr>
+</table>
+
+<pre><code>// Track file history
+var history = [];
+
+patch.on('file:open', function(path, info) {
+  history.push({ path: path, time: Date.now() });
+  if (history.length > 50) history.shift();
+});
+
+patch.on('file:save', function(path, content) {
+  patch.ui.addStatus('Saved: ' + path.split('/').pop());
+});</code></pre>
+
+<!-- patch.internal -->
+<h3 id="internal">patch.internal</h3>
+<p>Read-only access to Patch's internal state. Useful for getting the current folder, file tree, or tabs list.</p>
+
+<table>
+  <tr><th>Property</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>rootPath</code></td><td><code>string | null</code></td><td>Currently opened folder path</td></tr>
+  <tr><td><code>fileTree</code></td><td><code>FileNode[]</code></td><td>Full file tree of the opened folder</td></tr>
+  <tr><td><code>tabs</code></td><td><code>OpenTab[]</code></td><td>All currently open tabs</td></tr>
+  <tr><td><code>activeTabPath</code></td><td><code>string | null</code></td><td>Path of the active (focused) tab</td></tr>
+  <tr><td><code>editorRef</code></td><td><code>React.RefObject</code></td><td>The Monaco editor React ref</td></tr>
+</table>
+
+<pre><code>// Get the current folder name
+var folder = patch.internal.rootPath;
+if (folder) {
+  var name = folder.split('/').pop();
+  patch.ui.addStatus('Working in: ' + name);
+}
+
+// Count open tabs
+var count = patch.internal.tabs.length;
+patch.ui.addStatus(count + ' tabs open');
+
+// Check if a file is currently open
+var active = patch.internal.activeTabPath;
+var isOpen = patch.internal.tabs.some(function(t) { return t.path === active; });</code></pre>
+
+<!-- =============================================================================== -->
+<h2 id="lifecycle">Plugin Lifecycle</h2>
+
+<ol>
+  <li><strong>Scan</strong> — Patch reads <code>~/.patch/init.js</code> and scans <code>~/.patch/plugins/</code> for folders containing <code>manifest.json</code></li>
+  <li><strong>API creation</strong> — A fresh <code>patch</code> API object is created with empty command and view registries</li>
+  <li><strong>Execution</strong>
+    <ul>
+      <li><code>init.js</code> — Raw code executed via <code>new Function('patch', code)</code></li>
+      <li>Plugin <code>index.js</code> — <code>export</code> keywords are stripped, then <code>activate(patch)</code> is called</li>
+    </ul>
+  </li>
+  <li><strong>Reload</strong> — From the Plugins panel: all plugin state is cleared (commands, sidebar views), the filesystem is re-scanned, and all enabled plugins re-execute with a fresh API object</li>
+</ol>
+
+<div class="tip">
+<strong>Important:</strong> Plugin state (closure variables, intervals, timeouts) is lost on reload. The API object is replaced — old references to <code>patch</code> become stale. Use <code>patch.fs</code> to persist data to disk.
+</div>
+
+<!-- =============================================================================== -->
+<h2>Examples</h2>
+
+<h3 id="example-gpu">GPU Monitor</h3>
+<p>Full sidebar panel showing GPU model, memory usage, and CPU stats. Updates every 3 seconds.</p>
+<p>Location: <code>~/.patch/plugins/gpu-monitor/</code></p>
+
+<pre><code>function activate(patch) {
+  var interval = null;
+  var data = { gpu: '', mem: '', cpu: '' };
+
+  function fetch() {
+    patch.exec('lspci 2>/dev/null | grep -i "vga\\|3d\\|display" | ' +
+      'head -1 | sed \'s/.*: //;s/ (rev.*//\' || echo "unknown"')
+      .then(function(gpu) {
+        data.gpu = gpu;
+        return patch.exec('free -m 2>/dev/null | awk \'/Mem:/ {print $3"/"$2" MB"}\'');
+      })
+      .then(function(mem) {
+        data.mem = mem;
+        return patch.exec('top -bn1 2>/dev/null | head -3');
+      })
+      .then(function(cpu) { data.cpu = cpu; });
+  }
+
+  function render() {
+    var cpuLine = data.cpu.split('\n').find(function(l) {
+      return l.indexOf('%Cpu') >= 0;
+    });
+    return '&lt;h3&gt;GPU Monitor&lt;/h3&gt;'
+      + '&lt;table&gt;'
+      + '&lt;tr&gt;&lt;th&gt;GPU&lt;/th&gt;&lt;td&gt;' + data.gpu.trim() + '&lt;/td&gt;&lt;/tr&gt;'
+      + '&lt;tr&gt;&lt;th&gt;Memory&lt;/th&gt;&lt;td&gt;' + data.mem.trim() + '&lt;/td&gt;&lt;/tr&gt;'
+      + '&lt;tr&gt;&lt;th&gt;CPU&lt;/th&gt;&lt;td&gt;' + (cpuLine ? cpuLine.trim() : 'N/A') + '&lt;/td&gt;&lt;/tr&gt;'
+      + '&lt;/table&gt;'
+      + '&lt;p style="color:var(--text-muted);font-size:11px"&gt;'
+      + 'Updated ' + new Date().toLocaleTimeString() + '&lt;/p&gt;';
+  }
+
+  patch.ui.registerSidebarView('gpu-monitor-view', 'GPU Monitor',
+    '&lt;svg viewBox="0 0 24 24" width="18" height="18" ' +
+    'fill="none" stroke="currentColor" stroke-width="2"&gt;' +
+    '&lt;rect x="2" y="7" width="20" height="10" rx="2"/&gt;' +
+    '&lt;circle cx="12" cy="12" r="2"/&gt;' +
+    '&lt;path d="M16 12h4M4 12h4"/&gt;&lt;/svg&gt;',
+    render
+  );
+
+  patch.commands.register('show-gpu', 'Show GPU Usage', function() {
+    if (interval) {
+      clearInterval(interval);
+      interval = null;
+      fetch();
+      patch.ui.addStatus('GPU monitor stopped');
+      return;
+    }
+    fetch();
+    interval = setInterval(fetch, 3000);
+    patch.ui.addStatus('GPU monitor started (every 3s)');
+  });
+}</code></pre>
+
+<h3 id="example-hello">Hello World</h3>
+<p>A minimal plugin to demonstrate the boilerplate.</p>
+
+<pre><code>// ~/.patch/plugins/hello-world/index.js
+function activate(patch) {
+  patch.commands.register('hello-world', 'Hello World', function() {
+    patch.ui.addStatus('Hello, world!');
+  });
+
+  patch.on('file:open', function(path, info) {
+    patch.ui.addStatus('Opened: ' + info.name);
+  });
+}</code></pre>
+
+<pre><code>{
+  "id": "hello-world",
+  "name": "Hello World",
+  "version": "1.0.0",
+  "description": "A friendly greeting plugin"
+}</code></pre>
+
+<h3 id="example-snippets">Snippet Injector</h3>
+<p>A sidebar panel that shows code snippets. Clicking one inserts it at the cursor.</p>
+
+<pre><code>function activate(patch) {
+  var snippets = [
+    { name: 'Console log', code: 'console.log($1);' },
+    { name: 'Function', code: 'function $1($2) {\n  $3\n}' },
+    { name: 'Arrow fn', code: 'const $1 = ($2) => $3;' },
+    { name: 'Import', code: 'import { $1 } from "$2";' },
+  ];
+
+  function render() {
+    var html = '&lt;h3&gt;Snippets&lt;/h3&gt;&lt;ul style="list-style:none;padding:0"&gt;';
+    snippets.forEach(function(s) {
+      html += '&lt;li onclick="patch_insert(\'' + s.code.replace(/'/g, "\\'")
+        + '\')" style="cursor:pointer;padding:4px 8px;margin:2px 0;' +
+        'border-radius:4px;background:var(--bg3)"&gt;'
+        + s.name + '&lt;/li&gt;';
+    });
+    return html + '&lt;/ul&gt;';
+  }
+
+  // We expose a global function since the sidebar HTML runs in a different scope
+  window.patch_insert = function(code) {
+    var ed = patch.editor.getMonacoEditor();
+    if (ed) {
+      var sel = ed.getSelection();
+      ed.executeEdits('snippet', [{ range: sel, text: code }]);
+      ed.focus();
+    }
+  };
+
+  patch.ui.registerSidebarView('snippets', 'Snippets',
+    '&lt;svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor"&gt;' +
+    '&lt;path d="M4.5 2.5a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H2a.5.5 0 01-.5-.5V3a.5.5 0 01.5-.5h2.5zM2 7.5a.5.5 0 01.5.5v3a.5.5 0 01-.5.5H.5a.5.5 0 010-1H1V8a.5.5 0 01.5-.5H2zm8-5a.5.5 0 01.5-.5H13a.5.5 0 01.5.5v3a.5.5 0 01-.5.5h-2.5a.5.5 0 01-.5-.5V3a.5.5 0 01.5-.5h.5V2.5zM7 3.5a.5.5 0 01.5-.5h1a.5.5 0 010 1h-1a.5.5 0 01-.5-.5zM7 8a.5.5 0 01.5-.5h1a.5.5 0 010 1h-1A.5.5 0 017 8zm-3.5.5a.5.5 0 000 1h1a.5.5 0 000-1h-1z"/&gt;' +
+    '&lt;/svg&gt;',
+    render
+  );
+}</code></pre>
+
+<h3 id="example-formatter">JSON Formatter</h3>
+<p>A command-only plugin that formats JSON in the active editor.</p>
+
+<pre><code>function activate(patch) {
+  patch.commands.register('format-json', 'Format JSON', function() {
+    var text = patch.editor.getContent();
+    try {
+      var formatted = JSON.stringify(JSON.parse(text), null, 2);
+      patch.editor.setContent(formatted);
+      patch.ui.addStatus('JSON formatted');
+    } catch (e) {
+      patch.ui.addStatus('Invalid JSON: ' + e.message);
+    }
+  });
+}</code></pre>
+
+<!-- =============================================================================== -->
+<h2 id="tips">Tips &amp; Patterns</h2>
+
+<div class="method-grid">
+  <div class="method-card">
+    <h4>Keep render() fast</h4>
+    <p><code>render()</code> is called every time the sidebar re-renders. Do heavy work in intervals or commands, store results in closure variables, and keep <code>render()</code> a pure read.</p>
+  </div>
+  <div class="method-card">
+    <h4>Use <code>var</code></h4>
+    <p><code>const</code>/<code>let</code> work in the sandbox, but <code>var</code> is safer for the <code>new Function()</code> context and consistent with existing plugins.</p>
+  </div>
+  <div class="method-card">
+    <h4>Graceful shell commands</h4>
+    <p>Use <code>2>/dev/null || echo 'fallback'</code> to avoid unhandled rejections. Chain <code>.catch()</code> for robustness.</p>
+  </div>
+  <div class="method-card">
+    <h4>No <code>export</code> in index.js</h4>
+    <p>Use <code>function activate(patch) { ... }</code>. <code>export</code> is stripped automatically, but it's cleaner without it.</p>
+  </div>
+  <div class="method-card">
+    <h4>Icon design</h4>
+    <p>Use 18×18 viewBox for activity bar buttons. Use <code>currentColor</code> for stroke/fill so icons respect the theme.</p>
+  </div>
+  <div class="method-card">
+    <h4>Persist state</h4>
+    <p>Plugin state resets on reload. Use <code>patch.fs.writeFile()</code> to persist data to <code>~/.patch/</code> and read it back in <code>activate()</code>.</p>
+  </div>
+  <div class="method-card">
+    <h4>Unique IDs</h4>
+    <p>Command IDs and sidebar view IDs are deduplicated. If a plugin registers the same ID twice, the second registration is silently ignored.</p>
+  </div>
+  <div class="method-card">
+    <h4>No <code>require()</code></h4>
+    <p>Plugins run in a sandbox without Node.js <code>require()</code>. Use <code>patch.exec()</code> to invoke CLI tools instead.</p>
+  </div>
+</div>
+
+<h2 id="ideas">Plugin Ideas</h2>
+
+<ul>
+  <li><strong>Syntax checker</strong> — run <code>eslint</code>, <code>ruff</code>, or <code>gofmt</code> via <code>patch.exec()</code> and display problems</li>
+  <li><strong>Clipboard manager</strong> — track <code>file:save</code> events and maintain a clipboard history sidebar</li>
+  <li><strong>Color picker</strong> — a sidebar view with an HTML color input that inserts hex values</li>
+  <li><strong>Live Markdown preview</strong> — render markdown in a sidebar view using a lightweight parser</li>
+  <li><strong>Project notes</strong> — save/load markdown notes scoped to the current folder</li>
+  <li><strong>Time tracker</strong> — log which files you edit and for how long, export to CSV</li>
+  <li><strong>AI prompt templates</strong> — inject custom system prompts or user messages into the AI chat</li>
+  <li><strong>Keybinding layer</strong> — use <code>patch.monaco.editor.addEditorAction()</code> to add custom keyboard shortcuts</li>
+  <li><strong>Todo highlighter</strong> — scan open files for <code>TODO</code> and <code>FIXME</code> comments, show in sidebar</li>
+  <li><strong>Bookmarks</strong> — save/restore cursor positions per file, navigate with a sidebar list</li>
+  <li><strong>Git blame viewer</strong> — run <code>git blame</code> on the active file and show annotations</li>
+  <li><strong>Bulk renamer</strong> — sidebar panel with regex rename for files in the project</li>
+</ul>
+
+<div class="footer">
+  Built for <a href="#">Patch</a>
+</div>
+
+</div>
+</body>
+</html>
