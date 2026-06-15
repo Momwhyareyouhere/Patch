@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, nativeImage, safeStorage } from 'electron';
-import { readFile, writeFile, readdir, mkdir } from 'fs/promises';
+import { readFile, writeFile, readdir, mkdir, rm } from 'fs/promises';
 import { join, dirname, basename, extname } from 'path';
 import { watch, FSWatcher } from 'fs';
 import { homedir } from 'os';
@@ -93,7 +93,7 @@ function createWindow() {
     {
       label: 'Help',
       submenu: [
-        { label: 'About Patch', click: () => { dialog.showMessageBox(mainWindow!, { type: 'info', title: 'About Patch', message: 'Patch v1.0.2', detail: 'A lightweight code editor built with Electron, Monaco Editor, and React.\n\nCreated by Momwhyareyouhere.' }); } },
+        { label: 'About Patch', click: () => { dialog.showMessageBox(mainWindow!, { type: 'info', title: 'About Patch', message: 'Patch v1.0.3', detail: 'A lightweight code editor built with Electron, Monaco Editor, and React.\n\nCreated by Momwhyareyouhere.' }); } },
         { label: 'Keyboard Shortcuts', click: () => mainWindow?.webContents.send('menu-shortcuts') },
       ],
     },
@@ -147,16 +147,28 @@ function getLanguageFromExtension(filePath: string): string {
   return map[ext] || 'plaintext';
 }
 
-async function searchInFiles(rootPath: string, query: string, pattern: string): Promise<any[]> {
+async function searchInFiles(rootPath: string, query: string, pattern: string, options?: any): Promise<any[]> {
   const results: any[] = [];
-  const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  const isRegex = options?.isRegex ?? false;
+  const matchCase = options?.matchCase ?? false;
+  const wholeWord = options?.wholeWord ?? false;
+  const excludePattern = options?.excludePattern || '';
+  const ctxLines = options?.contextLines ?? 0;
+
+  let queryStr = query;
+  if (!isRegex) queryStr = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (wholeWord) queryStr = '\\b' + queryStr + '\\b';
+  const flags = matchCase ? 'g' : 'gi';
+  const regex = new RegExp(queryStr, flags);
   const filePatternRegex = pattern ? new RegExp(pattern.replace(/\*/g, '.*'), 'i') : null;
+  const excludeRegex = excludePattern ? new RegExp(excludePattern.replace(/\*/g, '.*'), 'i') : null;
 
   async function searchDir(dirPath: string) {
     const entries = await readdir(dirPath, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
       const fullPath = join(dirPath, entry.name);
+      if (excludeRegex && excludeRegex.test(fullPath)) continue;
       try {
         if (entry.isDirectory()) { await searchDir(fullPath); }
         else {
@@ -168,10 +180,21 @@ async function searchInFiles(rootPath: string, query: string, pattern: string): 
             regex.lastIndex = 0;
             while ((match = regex.exec(lines[i])) !== null) {
               if (results.length >= 1000) return;
-              results.push({
+              const result: any = {
                 path: fullPath, name: entry.name, line: i + 1,
                 column: match.index + 1, lineContent: lines[i].trim(), matchLength: match[0].length,
-              });
+              };
+              if (ctxLines > 0) {
+                const beforeStart = Math.max(0, i - ctxLines);
+                const before: string[] = [];
+                for (let b = beforeStart; b < i; b++) before.push(lines[b]);
+                result.beforeContext = before;
+                const afterEnd = Math.min(lines.length, i + ctxLines + 1);
+                const after: string[] = [];
+                for (let a = i + 1; a < afterEnd; a++) after.push(lines[a]);
+                result.afterContext = after;
+              }
+              results.push(result);
             }
           }
         }
@@ -342,8 +365,8 @@ ipcMain.handle('fs:moveEntry', async (_event, srcPath: string, destDir: string) 
   return { path: destPath, name };
 });
 
-ipcMain.handle('fs:searchFiles', async (_event, rootPath: string, query: string, pattern: string) => {
-  return searchInFiles(rootPath, query, pattern);
+ipcMain.handle('fs:searchFiles', async (_event, rootPath: string, query: string, pattern: string, options?: any) => {
+  return searchInFiles(rootPath, query, pattern, options);
 });
 
 ipcMain.handle('fs:getFileContent', async (_event, filePath: string) => {
@@ -788,6 +811,7 @@ ipcMain.handle('plugins:scan', async () => {
           version: manifest.version || '1.0.0',
           description: manifest.description || '',
           path: indexPath,
+          dirPath: pluginDir,
           type: 'plugin',
           enabled: true,
         });
@@ -811,6 +835,143 @@ ipcMain.handle('plugins:exec', async (_event, command: string) => {
       else resolve(stdout || '(no output)');
     });
   });
+});
+
+ipcMain.handle('plugins:readme', async (_event, dirPath: string) => {
+  try {
+    return await readFile(join(dirPath, 'README.md'), 'utf-8');
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle('plugins:uninstall', async (_event, dirPath: string) => {
+  try {
+    await rm(dirPath, { recursive: true, force: true });
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+const MARKETPLACE_REPO = 'momwhyareyouhere/patch-plugins/main';
+const MARKETPLACE_REPOS_PATH = join(homedir(), '.patch', 'marketplace-repos.json');
+
+let cachedRegistry: any[] | null = null;
+let cachedRepos: string[] | null = null;
+
+async function loadMarketplaceRepos(): Promise<string[]> {
+  if (cachedRepos) return cachedRepos;
+  try {
+    const data = await readFile(MARKETPLACE_REPOS_PATH, 'utf-8');
+    cachedRepos = JSON.parse(data);
+    return cachedRepos || [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveMarketplaceRepos(repos: string[]) {
+  cachedRepos = repos;
+  await mkdir(dirname(MARKETPLACE_REPOS_PATH), { recursive: true });
+  await writeFile(MARKETPLACE_REPOS_PATH, JSON.stringify(repos, null, 2), 'utf-8');
+}
+
+async function fetchRegistry(repo: string): Promise<any[]> {
+  try {
+    const res = await fetch(`https://raw.githubusercontent.com/${repo}/registry.json`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) return data.map((p: any) => ({ ...p, repo }));
+    }
+  } catch {}
+  return [];
+}
+
+ipcMain.handle('plugins:marketplace-list', async () => {
+  const allRegistries: any[] = [];
+
+  if (!cachedRegistry) {
+    const defaultPlugins = await fetchRegistry(MARKETPLACE_REPO);
+    cachedRegistry = defaultPlugins;
+    allRegistries.push(...defaultPlugins);
+  } else {
+    allRegistries.push(...cachedRegistry);
+  }
+
+  const customRepos = await loadMarketplaceRepos();
+  for (const repo of customRepos) {
+    const plugins = await fetchRegistry(repo);
+    allRegistries.push(...plugins);
+  }
+
+  const installed = new Set<string>();
+  try {
+    const entries = await readdir(PLUGINS_DIR);
+    for (const e of entries) installed.add(e);
+  } catch {}
+
+  const seen = new Set<string>();
+  return allRegistries.filter((p: any) => {
+    if (seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  }).map((p: any) => ({ ...p, installed: installed.has(p.id) }));
+});
+
+ipcMain.handle('plugins:marketplace-readme', async (_event, repo: string, pluginId: string) => {
+  try {
+    const res = await fetch(`https://raw.githubusercontent.com/${repo}/plugins/${pluginId}/README.md`);
+    if (res.ok) return await res.text();
+  } catch {}
+  return null;
+});
+
+ipcMain.handle('plugins:marketplace-install', async (_event, pluginId: string, repo?: string) => {
+  const allRegistries = [...(cachedRegistry || []), ...(await Promise.all((await loadMarketplaceRepos()).map(fetchRegistry))).flat()];
+  const plugin = allRegistries.find((p: any) => p.id === pluginId && (!repo || p.repo === repo));
+  if (!plugin) return { success: false, error: 'Plugin not found' };
+
+  const targetDir = join(PLUGINS_DIR, pluginId);
+  try {
+    await mkdir(targetDir, { recursive: true });
+    const base = `https://raw.githubusercontent.com/${plugin.repo}/plugins/${pluginId}`;
+    const files = ['manifest.json', 'index.js', 'README.md'];
+    for (const file of files) {
+      const url = `${base}/${file}`;
+      const res = await fetch(url);
+      if (!res.ok && file === 'index.js') throw new Error(`Failed to download ${file}`);
+      if (res.ok) {
+        const content = await res.text();
+        await writeFile(join(targetDir, file), content, 'utf-8');
+      }
+    }
+    return { success: true };
+  } catch (err: any) {
+    try { await rm(targetDir, { recursive: true, force: true }); } catch {}
+    return { success: false, error: err?.message || 'Install failed' };
+  }
+});
+
+ipcMain.handle('plugins:marketplace-get-repos', async () => {
+  return loadMarketplaceRepos();
+});
+
+ipcMain.handle('plugins:marketplace-add-repo', async (_event, repo: string) => {
+  const repos = await loadMarketplaceRepos();
+  if (repos.includes(repo)) return { success: false, error: 'Already added' };
+  repos.push(repo);
+  await saveMarketplaceRepos(repos);
+  cachedRegistry = null;
+  return { success: true };
+});
+
+ipcMain.handle('plugins:marketplace-remove-repo', async (_event, repo: string) => {
+  const repos = await loadMarketplaceRepos();
+  const filtered = repos.filter((r: string) => r !== repo);
+  await saveMarketplaceRepos(filtered);
+  cachedRegistry = null;
+  return { success: true };
 });
 
 ipcMain.handle('app:setTitle', async (_event, title: string) => {

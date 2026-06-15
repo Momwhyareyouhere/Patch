@@ -76,7 +76,7 @@
   .main {
     margin-left: var(--sidebar-w);
     flex: 1;
-    max-width: 900px;
+    max-width: 100%;
     padding: 40px 48px 80px;
   }
   @media (max-width: 768px) {
@@ -157,11 +157,33 @@
   }
   .hero {
     text-align: center;
-    padding: 48px 0 32px;
+    padding: 56px 0 40px;
+    position: relative;
+    overflow: hidden;
   }
-  .hero h1 { font-size: 42px; font-weight: 800; }
-  .hero h1 span { color: var(--accent); }
-  .hero p { font-size: 18px; margin-top: 8px; }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60%;
+    left: -20%;
+    width: 140%;
+    height: 200%;
+    background: radial-gradient(ellipse at center, rgba(88,166,255,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero h1 { font-size: 42px; font-weight: 800; position: relative; }
+  .hero h1 span { color: var(--accent); position: relative; }
+  .hero h1 span::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    border-radius: 2px;
+  }
+  .hero p { font-size: 18px; margin-top: 8px; position: relative; }
   .feature-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -174,6 +196,8 @@
     border-radius: 6px;
     padding: 16px;
   }
+  .feature-card { transition: border-color 0.2s, transform 0.2s; }
+  .feature-card:hover { border-color: var(--accent); transform: translateY(-1px); }
   .feature-card h4 { margin: 0 0 4px; font-size: 14px; }
   .feature-card p { font-size: 13px; margin: 0; }
   .shortcut-grid {
@@ -210,7 +234,7 @@
 <nav class="sidebar">
   <div class="sidebar-header">
     <h1>Patch</h1>
-    <p>v1.0.2 &mdash; Docs</p>
+    <p>v1.0.3 &mdash; Docs</p>
   </div>
   <div class="sidebar-nav">
     <a href="#about">About Patch</a>
@@ -220,11 +244,13 @@
     <a href="#editor">Editor</a>
     <a href="#tabs">Tabs &amp; Files</a>
     <a href="#sidebar">Sidebar</a>
+    <a href="#search">Search</a>
     <a href="#command-palette">Command Palette</a>
     <a href="#shortcuts">Keyboard Shortcuts</a>
     <a href="#terminal">Terminal</a>
     <a href="#ai">AI Chat</a>
     <a href="#settings">Settings</a>
+    <a href="#extension-marketplace">Extension Marketplace</a>
 
     <div class="section-label">Plugin API</div>
     <a href="#plugin-quickstart">Quick Start</a>
@@ -257,9 +283,11 @@
 <div class="feature-grid">
   <div class="feature-card"><h4>Monaco Editor</h4><p>Same engine as VS Code — syntax highlighting, IntelliSense, multi-cursor, find &amp; replace.</p></div>
   <div class="feature-card"><h4>Plugin System</h4><p>Extend with custom sidebar panels, commands, shell integration, and Monaco extensions.</p></div>
+  <div class="feature-card"><h4>Extension Marketplace</h4><p>Browse, install, and manage plugins from built-in and custom repositories.</p></div>
   <div class="feature-card"><h4>AI Chat</h4><p>Built-in AI assistant with multi-provider support (OpenAI, Anthropic, OpenRouter, Ollama, and more).</p></div>
   <div class="feature-card"><h4>Integrated Terminal</h4><p>Full xterm terminal with <code>node-pty</code>, supports multiple tabs.</p></div>
   <div class="feature-card"><h4>Git Integration</h4><p>View changed files, stage/unstage, commit, push, pull — all from the sidebar.</p></div>
+  <div class="feature-card"><h4>Cross-file Search</h4><p>Search &amp; replace across files with regex, match case, whole word, exclude patterns, and context lines.</p></div>
   <div class="feature-card"><h4>File Management</h4><p>Create, rename, delete, move files and folders. Drag-and-drop support. Hidden file toggling.</p></div>
 </div>
 
@@ -340,7 +368,7 @@ npm run dist:win        # NSIS installer</code></pre>
 <p>File tree with create, rename, delete, move actions. Toggle hidden files with the eye icon. Right-click context menu for common operations.</p>
 
 <h3>Search</h3>
-<p>Full-text search across all files in the opened folder. Supports regex and glob patterns. Results show file name, line number, and matching line content.</p>
+<p>Full-text search across all files in the opened folder. Supports regex, match case, whole word, exclude patterns, and context lines. Open with <code>Ctrl+Shift+F</code>.</p>
 
 <h3>Source Control (Git)</h3>
 <p>View changed files grouped by status (modified, added, deleted, untracked). Stage/unstage files, commit with message, push/pull. Auto-polls every 5 seconds.</p>
@@ -353,6 +381,26 @@ npm run dist:win        # NSIS installer</code></pre>
 
 <h3>Plugin Views</h3>
 <p>Any registered plugin sidebar view gets its own icon in the activity bar. Click to show that plugin's panel.</p>
+
+<!-- ================================================================== -->
+<h2 id="search">Search</h2>
+<p class="lead">Full-text search across all files in the opened folder. Open with <code>Ctrl+Shift+F</code>.</p>
+
+<h3>Basic Search</h3>
+<p>Type a query to find matching files and lines. Results show file name, line number, and the matching line content. Click a result to jump to that location.</p>
+
+<h3>Advanced Options</h3>
+<table>
+  <tr><th>Option</th><th>Description</th></tr>
+  <tr><td><strong>Regex</strong> (<code>.*</code>)</td><td>Search using regular expressions instead of plain text</td></tr>
+  <tr><td><strong>Match Case</strong> (<code>Aa</code>)</td><td>Case-sensitive matching</td></tr>
+  <tr><td><strong>Whole Word</strong> (<code>ab|</code>)</td><td>Match only whole words (word boundaries)</td></tr>
+  <tr><td><strong>Exclude Pattern</strong></td><td>Filter out files matching a glob pattern (e.g. <code>*.log</code>, <code>dist/**</code>)</td></tr>
+  <tr><td><strong>Context Lines</strong></td><td>Show 0–5 lines of surrounding context per match</td></tr>
+</table>
+
+<h3>Replace</h3>
+<p>Replace matching text across all files or one file at a time. All search options (regex, case, whole word) apply to replace operations as well.</p>
 
 <!-- ================================================================== -->
 <h2 id="command-palette">Command Palette</h2>
@@ -465,6 +513,89 @@ npm run dist:win        # NSIS installer</code></pre>
   <tr><td><code>ai.maxTokens</code></td><td>4096</td><td>Max response length</td></tr>
   <tr><td><code>ai.toolsEnabled</code></td><td>true</td><td>Allow AI to use tools</td></tr>
 </table>
+
+<!-- ================================================================== -->
+<h2 id="extension-marketplace">Extension Marketplace</h2>
+<p class="lead">Patch includes a built-in extension marketplace for browsing and installing plugins from curated and custom repositories.</p>
+
+<h3>Opening the Marketplace</h3>
+<p>Click the <strong>puzzle-piece icon</strong> in the activity bar to open the Extensions panel. The panel lists all available plugins from the default repository and any custom repos you've added.</p>
+
+<h3>Browsing &amp; Installing</h3>
+<ul>
+  <li>Browse available plugins — each card shows the name, description, author, and version</li>
+  <li>Click any card to open a <strong>detail tab</strong> with the plugin's rendered README</li>
+  <li>Click <strong>Install</strong> from the detail tab or the list view to download and activate the plugin</li>
+  <li>Installed plugins show an <strong>enable/disable toggle</strong> and an <strong>Uninstall</strong> button in the detail tab</li>
+</ul>
+
+<h3>Custom Repositories</h3>
+<p>You can add your own extension repositories by entering a <code>user/repo/branch</code> path in the <strong>Repositories</strong> section at the bottom of the extensions panel.</p>
+
+<h4>Registry Structure</h4>
+<p>Each repository must contain a <code>registry.json</code> at the root and plugin files under <code>plugins/&lt;id&gt;/</code>:</p>
+<pre><code>registry.json
+plugins/
+  &lt;id&gt;/
+    manifest.json
+    index.js
+    README.md (optional)</code></pre>
+
+<h4>registry.json format</h4>
+<pre><code>{
+  "id": "my-plugin",
+  "name": "My Plugin",
+  "version": "1.0.0",
+  "description": "Does something useful",
+  "author": "You",
+  "repo": "user/repo/branch"
+}</code></pre>
+
+<p>Custom repos are persisted to <code>~/.patch/marketplace-repos.json</code> and survive restarts.</p>
+
+<div class="tip"><strong>Tip:</strong> You can use the same repo that contains your own plugins as a marketplace registry — just add a <code>registry.json</code> pointing to them.</div>
+
+<h4>Example repository with multiple plugins</h4>
+<pre><code>registry.json
+plugins/
+  cpu-monitor/
+    manifest.json
+    index.js
+    README.md
+  json-formatter/
+    manifest.json
+    index.js
+  color-picker/
+    manifest.json
+    index.js</code></pre>
+
+<p><code>registry.json</code> listing all three:</p>
+<pre><code>[
+  {
+    "id": "cpu-monitor",
+    "name": "CPU Monitor",
+    "version": "1.0.0",
+    "description": "Monitor CPU, GPU and memory usage",
+    "author": "You",
+    "repo": "user/repo/main"
+  },
+  {
+    "id": "json-formatter",
+    "name": "JSON Formatter",
+    "version": "1.0.0",
+    "description": "Format and validate JSON documents",
+    "author": "You",
+    "repo": "user/repo/main"
+  },
+  {
+    "id": "color-picker",
+    "name": "Color Picker",
+    "version": "1.0.0",
+    "description": "Pick colors and insert hex/rgb values",
+    "author": "You",
+    "repo": "user/repo/main"
+  }
+]</code></pre>
 
 <!-- ================================================================== -->
 <h2 id="plugin-quickstart">Plugin API — Quick Start</h2>

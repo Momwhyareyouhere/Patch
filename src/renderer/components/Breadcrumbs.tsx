@@ -5,7 +5,7 @@ interface Props {
 }
 
 export default function Breadcrumbs({ path, rootPath, onNavigate }: Props) {
-  if (!path || !rootPath) return null;
+  if (!path || !rootPath || path.startsWith('output://')) return null;
 
   const relative = path.replace(rootPath, '') || '/';
   const parts = relative.split('/').filter(Boolean);

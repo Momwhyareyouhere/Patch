@@ -15,6 +15,7 @@ import Breadcrumbs from './components/Breadcrumbs';
 import AIPanel from './components/AIPanel';
 import GitPanel from './components/GitPanel';
 import PluginPanel from './components/PluginPanel';
+import MarketplacePanel from './components/MarketplacePanel';
 import { createPatchAPI, executePluginCode, executePluginModule } from './pluginApi';
 import type { PluginHost } from './pluginApi';
 
@@ -340,6 +341,25 @@ export default function App() {
     });
   }, []);
 
+  const openPluginTab = useCallback(async (plugin: PluginInfo) => {
+    let readme = '';
+    if (plugin.dirPath) {
+      readme = await window.api.plugins.readme(plugin.dirPath) || '';
+    }
+    const data = JSON.stringify({ ...plugin, readme });
+    const path = 'plugin-info://' + plugin.id;
+    setTabs((prev) => {
+      const existing = prev.find((t) => t.path === path);
+      if (existing) {
+        setActiveTabPath(path);
+        return prev;
+      }
+      const tab: OpenTab = { path, name: plugin.name, language: 'plugin-info', content: data, savedContent: data, isDirty: false };
+      setActiveTabPath(path);
+      return [...prev, tab];
+    });
+  }, []);
+
   const registerSidebarView = useCallback((view: PluginSidebarView) => {
     setPluginViews((prev) => {
       if (prev.find((v) => v.id === view.id)) return prev;
@@ -635,6 +655,11 @@ export default function App() {
                 <path d="M2 2h12v2H2V2zm0 5h12v2H2V7zm0 5h12v2H2v-2z" />
               </svg>
             </button>
+            <button className={`activity-bar-btn ${sidebarView === 'marketplace' ? 'active' : ''}`} onClick={() => setSidebarView('marketplace')} title="Extensions">
+              <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor">
+                <path d="M4.5 1A1.5 1.5 0 003 2.5v3A1.5 1.5 0 004.5 7h3A1.5 1.5 0 009 5.5v-3A1.5 1.5 0 007.5 1h-3zm0 1h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5v-3a.5.5 0 01.5-.5zM8.5 9A1.5 1.5 0 007 10.5v3A1.5 1.5 0 008.5 15h3a1.5 1.5 0 001.5-1.5v-3A1.5 1.5 0 0011.5 9h-3zm0 1h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5v-3a.5.5 0 01.5-.5zM1 10.5A1.5 1.5 0 012.5 9h3A1.5 1.5 0 017 10.5v3A1.5 1.5 0 015.5 15h-3A1.5 1.5 0 011 13.5v-3zm1.5-.5a.5.5 0 00-.5.5v3a.5.5 0 00.5.5h3a.5.5 0 00.5-.5v-3a.5.5 0 00-.5-.5h-3zM9.5 1A1.5 1.5 0 0011 2.5v3A1.5 1.5 0 0012.5 7h3A1.5 1.5 0 0016 5.5v-3A1.5 1.5 0 0015.5 1h-3zm0 1h3a.5.5 0 01.5.5v3a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5v-3a.5.5 0 01.5-.5z"/>
+              </svg>
+            </button>
             <button className={`activity-bar-btn ${sidebarView === 'plugins' ? 'active' : ''}`} onClick={() => setSidebarView('plugins')} title="Plugins">
               <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor">
                 <path fillRule="evenodd" d="M3.5 1A1.5 1.5 0 002 2.5v2A1.5 1.5 0 003.5 6h2A1.5 1.5 0 007 4.5v-2A1.5 1.5 0 005.5 1h-2zm0 1h2a.5.5 0 01.5.5v2a.5.5 0 01-.5.5h-2a.5.5 0 01-.5-.5v-2a.5.5 0 01.5-.5zM8.5 1A1.5 1.5 0 007 2.5v2A1.5 1.5 0 008.5 6h2A1.5 1.5 0 0012 4.5v-2A1.5 1.5 0 0010.5 1h-2zm0 1h2a.5.5 0 01.5.5v2a.5.5 0 01-.5.5h-2a.5.5 0 01-.5-.5v-2a.5.5 0 01.5-.5zM3.5 8A1.5 1.5 0 002 9.5v2A1.5 1.5 0 003.5 13h2A1.5 1.5 0 007 11.5v-2A1.5 1.5 0 005.5 8h-2zm0 1h2a.5.5 0 01.5.5v2a.5.5 0 01-.5.5h-2a.5.5 0 01-.5-.5v-2a.5.5 0 01.5-.5zM10.5 8A1.5 1.5 0 009 9.5v1.336l-1.5 1.5V11.5a.5.5 0 00-1 0v3a.5.5 0 00.5.5h3a.5.5 0 000-1h-.836l1.5-1.5H12.5A1.5 1.5 0 0014 11.5v-2A1.5 1.5 0 0012.5 8h-2zm0 1h2a.5.5 0 01.5.5v2a.5.5 0 01-.5.5h-2a.5.5 0 01-.5-.5v-2a.5.5 0 01.5-.5z" clipRule="evenodd" />
@@ -692,6 +717,7 @@ export default function App() {
               plugins={plugins}
               pluginStates={pluginStates}
               onToggle={(id, enabled) => setPluginStates((prev) => ({ ...prev, [id]: enabled }))}
+              onOpenPlugin={openPluginTab}
               onReload={async () => {
                 const list = await window.api.plugins.scan();
                 setPlugins(list);
@@ -735,6 +761,36 @@ export default function App() {
             }} />
           ) : sidebarView === 'search' ? (
             <SearchPanel rootPath={rootPath} onOpenFile={openFile} onGoToLocation={goToLocation} isActive={sidebarView === 'search'} />
+          ) : sidebarView === 'marketplace' ? (
+            <MarketplacePanel onRefreshPlugins={async () => {
+              const list = await window.api.plugins.scan();
+              setPlugins(list);
+            }} onOpenPlugin={async (plugin) => {
+              let readme = '';
+              try {
+                readme = await window.api.plugins.marketplaceReadme(plugin.repo, plugin.id) || '';
+              } catch {}
+              const installed = plugins.some((p) => p.id === plugin.id);
+              const installedPlugin = plugins.find((p) => p.id === plugin.id);
+              const data = JSON.stringify({
+                isMarketplace: true,
+                ...plugin,
+                installed,
+                dirPath: installedPlugin?.dirPath || '',
+                readme,
+              });
+              const path = 'plugin-info://marketplace-' + plugin.id;
+              setTabs((prev) => {
+                const existing = prev.find((t) => t.path === path);
+                if (existing) {
+                  setActiveTabPath(path);
+                  return prev.map((t) => t.path === path ? { ...t, content: data, savedContent: data, isDirty: false } : t);
+                }
+                const tab: OpenTab = { path, name: plugin.name, language: 'plugin-info', content: data, savedContent: data, isDirty: false };
+                setActiveTabPath(path);
+                return [...prev, tab];
+              });
+            }} />
           ) : (() => {
             const pluginView = pluginViews.find((v) => v.id === sidebarView);
             if (pluginView) {
@@ -760,15 +816,48 @@ export default function App() {
               const stat = fileTree.find((f) => f.path === p);
               if (stat?.type === 'file') openFile(p);
             }} />
-            <div className="editor-container">
-              {activeTab && (
-                <Editor
-                  key={`${activeTab.path}`} tab={activeTab} onChange={updateTabContent}
-                  settings={settings} editorRef={editorRef}
-                  onCursorChange={(line, col) => { setEditorLine(line); setEditorColumn(col); }}
-                />
-              )}
-            </div>
+              <div className="editor-container">
+                {activeTab ? (
+                  <Editor
+                    key={`${activeTab.path}`} tab={activeTab} onChange={updateTabContent}
+                    settings={settings} editorRef={editorRef}
+                    onCursorChange={(line, col) => { setEditorLine(line); setEditorColumn(col); }}
+                    pluginStates={pluginStates}
+                    onPluginToggle={(id, enabled) => setPluginStates((prev) => ({ ...prev, [id]: enabled }))}
+                    onPluginUninstall={async (plugin) => {
+                      if (!plugin.dirPath || !confirm(`Uninstall "${plugin.name}"?`)) return;
+                      const ok = await window.api.plugins.uninstall(plugin.dirPath);
+                      if (ok) {
+                        const list = await window.api.plugins.scan();
+                        setPlugins(list);
+                        closeTab('plugin-info://' + plugin.id);
+                      } else {
+                        alert('Failed to uninstall plugin');
+                      }
+                    }}
+                    onMarketplaceInstall={async (id, repo) => {
+                      const result = await window.api.plugins.marketplaceInstall(id, repo);
+                      if (result.success) {
+                        const list = await window.api.plugins.scan();
+                        setPlugins(list);
+                        const path = 'plugin-info://marketplace-' + id;
+                        setTabs((prev) => {
+                          const tab = prev.find((t) => t.path === path);
+                          if (tab) {
+                            const data = JSON.stringify({ ...JSON.parse(tab.content), installed: true, dirPath: list.find((p) => p.id === id)?.dirPath || '' });
+                            return prev.map((t) => t.path === path ? { ...t, content: data, savedContent: data } : t);
+                          }
+                          return prev;
+                        });
+                      } else {
+                        alert('Install failed: ' + (result.error || ''));
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="empty-editor"><p>Open a file from the explorer to start editing</p></div>
+                )}
+              </div>
           </>
         ) : (
           <div className="empty-editor">

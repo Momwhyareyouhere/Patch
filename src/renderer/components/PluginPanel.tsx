@@ -5,9 +5,10 @@ interface Props {
   pluginStates: Record<string, boolean>;
   onToggle: (id: string, enabled: boolean) => void;
   onReload: () => void;
+  onOpenPlugin: (plugin: PluginInfo) => void;
 }
 
-export default function PluginPanel({ plugins, pluginStates, onToggle, onReload }: Props) {
+export default function PluginPanel({ plugins, pluginStates, onToggle, onReload, onOpenPlugin }: Props) {
   return (
     <div className="plugin-panel">
       <div className="plugin-panel-header">
@@ -28,13 +29,9 @@ export default function PluginPanel({ plugins, pluginStates, onToggle, onReload 
       ) : (
         <div className="plugin-list">
           {plugins.map((p) => (
-            <div key={p.id} className="plugin-item">
-              <label className="plugin-toggle">
-                <input
-                  type="checkbox"
-                  checked={pluginStates[p.id] !== false}
-                  onChange={(e) => onToggle(p.id, e.target.checked)}
-                />
+            <div key={p.id} className="plugin-item" onClick={() => onOpenPlugin(p)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') onOpenPlugin(p); }}>
+              <label className="plugin-toggle" onClick={(e) => e.stopPropagation()}>
+                <input type="checkbox" checked={pluginStates[p.id] !== false} onChange={(e) => onToggle(p.id, e.target.checked)} />
                 <span className="plugin-toggle-slider" />
               </label>
               <div className="plugin-info">
@@ -44,6 +41,9 @@ export default function PluginPanel({ plugins, pluginStates, onToggle, onReload 
                   {p.description && <span className="plugin-desc">{p.description}</span>}
                 </div>
               </div>
+              <svg className="plugin-chevron" viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                <path d="M6.646 4.646a.5.5 0 01.708 0L10 7.293a.5.5 0 010 .708l-2.646 2.646a.5.5 0 01-.708-.708L8.793 7.5 6.646 5.354a.5.5 0 010-.708z" />
+              </svg>
             </div>
           ))}
         </div>

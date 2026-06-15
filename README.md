@@ -8,11 +8,12 @@ A lightweight code editor built with Electron, Monaco Editor, and React.
 - Multi-tab editing with Monaco (VS Code's editor)
 - AI chat integration (OpenAI, Anthropic, Gemini, DeepSeek, OpenRouter, OpenCode, Ollama, plus custom providers)
 - AI tool calling — read/write files, run commands, web search, and more
-- Built-in terminal (xterm.js + node-pty)
+- Built-in terminal (xterm.js + node-pty) with multi-tab support
 - Git integration (status, branch, log, stage, unstage, commit, push, pull, inline diff)
-- Search & replace across files with glob pattern filtering
+- Search & replace across files with regex, match case, whole word, exclude patterns, and context lines
 - Image preview
 - Plugin system with extensible API
+- Plugin detail tabs with rendered README, enable/disable toggle, and uninstall
 - Command palette (`Ctrl+Shift+P`), go to line (`Ctrl+G`), Zen mode
 - Problems panel for errors and warnings
 - File watcher with auto-refresh on external changes

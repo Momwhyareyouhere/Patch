@@ -28,6 +28,16 @@ export interface SearchResult {
   column: number;
   lineContent: string;
   matchLength: number;
+  beforeContext?: string[];
+  afterContext?: string[];
+}
+
+export interface SearchOptions {
+  isRegex?: boolean;
+  matchCase?: boolean;
+  wholeWord?: boolean;
+  excludePattern?: string;
+  contextLines?: number;
 }
 
 export type AIProvider = 'openai' | 'anthropic' | 'openrouter' | 'opencode' | 'gemini' | 'deepseek' | 'ollama' | 'custom';
@@ -71,18 +81,21 @@ export const PROVIDER_PRESETS: Record<AIProvider, AIProviderPreset> = {
   gemini: {
     label: 'Google Gemini',
     endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    models: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash'],
     keyPlaceholder: 'AIza... from https://aistudio.google.com/app/apikey',
     noKeyRequired: false,
   },
   deepseek: {
     label: 'DeepSeek',
     endpoint: 'https://api.deepseek.com/v1/chat/completions',
+    models: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4-flash-free'],
     keyPlaceholder: 'sk-... from https://platform.deepseek.com/api_keys',
     noKeyRequired: false,
   },
   ollama: {
     label: 'Ollama (Local)',
     endpoint: 'http://localhost:11434/v1/chat/completions',
+    models: ['llama3', 'llama3.1', 'mistral', 'codellama', 'deepseek-coder', 'mixtral', 'phi3'],
     keyPlaceholder: 'Not needed for local',
   },
   custom: {
@@ -180,8 +193,19 @@ export interface PluginInfo {
   version: string;
   description?: string;
   path: string;
+  dirPath?: string;
   type: 'init' | 'plugin';
   enabled: boolean;
+}
+
+export interface MarketplacePlugin {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  repo: string;
+  installed: boolean;
 }
 
 export interface PatchAPI {
@@ -263,7 +287,7 @@ export interface Api {
     deleteEntry: (entryPath: string) => Promise<boolean>;
     renameEntry: (oldPath: string, newName: string) => Promise<{ path: string; name: string }>;
     moveEntry: (srcPath: string, destDir: string) => Promise<{ path: string; name: string }>;
-    searchFiles: (rootPath: string, query: string, pattern: string) => Promise<SearchResult[]>;
+    searchFiles: (rootPath: string, query: string, pattern: string, options?: SearchOptions) => Promise<SearchResult[]>;
     getFileContent: (filePath: string) => Promise<string>;
     copyFile: (src: string, dest: string) => Promise<boolean>;
     watchFolder: (dirPath: string) => Promise<boolean>;
@@ -300,6 +324,14 @@ export interface Api {
     scan: () => Promise<PluginInfo[]>;
     read: (pluginPath: string) => Promise<string | null>;
     exec: (command: string) => Promise<string>;
+    readme: (dirPath: string) => Promise<string | null>;
+    uninstall: (dirPath: string) => Promise<boolean>;
+    marketplaceList: () => Promise<MarketplacePlugin[]>;
+    marketplaceReadme: (repo: string, pluginId: string) => Promise<string | null>;
+    marketplaceInstall: (id: string, repo?: string) => Promise<{ success: boolean; error?: string }>;
+    marketplaceGetRepos: () => Promise<string[]>;
+    marketplaceAddRepo: (repo: string) => Promise<{ success: boolean; error?: string }>;
+    marketplaceRemoveRepo: (repo: string) => Promise<{ success: boolean; error?: string }>;
   };
   on: (channel: string, callback: (...args: any[]) => void) => void;
   removeAllListeners: (channel: string) => void;

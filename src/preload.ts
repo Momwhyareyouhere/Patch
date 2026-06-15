@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld('api', {
     deleteEntry: (entryPath: string) => ipcRenderer.invoke('fs:deleteEntry', entryPath),
     renameEntry: (oldPath: string, newName: string) => ipcRenderer.invoke('fs:renameEntry', oldPath, newName),
     moveEntry: (srcPath: string, destDir: string) => ipcRenderer.invoke('fs:moveEntry', srcPath, destDir),
-    searchFiles: (rootPath: string, query: string, pattern: string) => ipcRenderer.invoke('fs:searchFiles', rootPath, query, pattern),
+    searchFiles: (rootPath: string, query: string, pattern: string, options?: any) => ipcRenderer.invoke('fs:searchFiles', rootPath, query, pattern, options),
     watchFolder: (dirPath: string) => ipcRenderer.invoke('fs:watchFolder', dirPath),
     getFileContent: (filePath: string) => ipcRenderer.invoke('fs:getFileContent', filePath),
     copyFile: (src: string, dest: string) => ipcRenderer.invoke('fs:copyFile', src, dest),
@@ -64,6 +64,14 @@ contextBridge.exposeInMainWorld('api', {
     scan: () => ipcRenderer.invoke('plugins:scan'),
     read: (pluginPath: string) => ipcRenderer.invoke('plugins:read', pluginPath),
     exec: (command: string) => ipcRenderer.invoke('plugins:exec', command),
+    readme: (dirPath: string) => ipcRenderer.invoke('plugins:readme', dirPath),
+    uninstall: (dirPath: string) => ipcRenderer.invoke('plugins:uninstall', dirPath),
+    marketplaceList: () => ipcRenderer.invoke('plugins:marketplace-list'),
+    marketplaceReadme: (repo: string, pluginId: string) => ipcRenderer.invoke('plugins:marketplace-readme', repo, pluginId),
+    marketplaceInstall: (id: string, repo?: string) => ipcRenderer.invoke('plugins:marketplace-install', id, repo),
+    marketplaceGetRepos: () => ipcRenderer.invoke('plugins:marketplace-get-repos'),
+    marketplaceAddRepo: (repo: string) => ipcRenderer.invoke('plugins:marketplace-add-repo', repo),
+    marketplaceRemoveRepo: (repo: string) => ipcRenderer.invoke('plugins:marketplace-remove-repo', repo),
   },
   on: (channel: string, callback: (...args: any[]) => void) => {
     const validChannels = [
