@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { FileNode, GitFile } from '../types';
 
 let clipboard: { path: string; operation: 'copy' | 'cut' } | null = null;
@@ -15,6 +15,11 @@ interface Props {
   onRefresh: () => void;
   activeFilePath: string | null;
   gitFiles: GitFile[];
+  workspaceFolders?: string[];
+  onSwitchRoot?: (path: string) => void;
+  onOpenDiff?: (original: string, modified: string, title?: string) => void;
+  diffCompare?: string | null;
+  onSetDiffCompare?: (path: string | null) => void;
 }
 
 const iconColor: Record<string, string> = {
@@ -102,6 +107,7 @@ async function pasteTo(path: string, rootPath: string) {
 function TreeNode({
   node, depth, onOpenFile, onCreateFile, onCreateDirectory, onDelete, onRename,
   activeFilePath, rootPath, gitFiles, onMoveFile, onRefresh, onClipChange,
+  onOpenDiff, diffCompare, onSetDiffCompare, openMenuPath, onOpenMenu,
 }: {
   node: FileNode; depth: number; onOpenFile: (path: string) => void;
   onCreateFile: (parentPath: string, name: string) => void;
@@ -111,14 +117,20 @@ function TreeNode({
   onMoveFile: (srcPath: string, destDir: string) => Promise<void>;
   onRefresh: () => void;
   onClipChange: () => void;
+  onOpenDiff?: (original: string, modified: string, title?: string) => void;
+  diffCompare?: string | null;
+  onSetDiffCompare?: (path: string | null) => void;
+  openMenuPath: string | null;
+  onOpenMenu: (path: string | null) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(node.name);
   const [creating, setCreating] = useState<'file' | 'dir' | null>(null);
   const [newName, setNewName] = useState('');
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
+
+  const showMenu = openMenuPath === node.path;
 
   const isActive = activeFilePath === node.path;
   const gitStatus = node.type === 'file' ? getGitStatus(node.path, gitFiles, rootPath) : '';
@@ -126,12 +138,12 @@ function TreeNode({
 
   const paddingLeft = 12 + depth * 16;
 
-  const closeMenu = () => setShowMenu(false);
+  const closeMenu = () => onOpenMenu(null);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
     setMenuPos({ x: e.clientX, y: e.clientY });
-    setShowMenu(true);
+    onOpenMenu(node.path);
   };
 
   const handleRename = async () => {
@@ -215,7 +227,18 @@ function TreeNode({
             <div className="menu-divider" />
             <button onClick={() => { setEditing(true); closeMenu(); }}>Rename</button>
             <button onClick={handleDelete}>Delete</button>
-            {isDir && (
+            {node.type === 'file' && (
+            <>
+              <div className="menu-divider" />
+              {diffCompare && diffCompare !== node.path ? (
+                <button onClick={() => { onOpenDiff?.(diffCompare, node.path); closeMenu(); }}>Compare with Selected</button>
+              ) : (
+                <button onClick={() => { onSetDiffCompare?.(node.path); closeMenu(); }}>Select for Compare</button>
+              )}
+              {diffCompare === node.path && <button onClick={() => { onSetDiffCompare?.(null); closeMenu(); }}>Clear Compare</button>}
+            </>
+          )}
+          {isDir && (
               <>
                 <div className="menu-divider" />
                 <button onClick={() => { setCreating('file'); closeMenu(); setExpanded(true); }}>New File</button>
@@ -241,7 +264,9 @@ function TreeNode({
             <TreeNode key={child.path} node={child} depth={depth + 1}
               onOpenFile={onOpenFile} onCreateFile={onCreateFile} onCreateDirectory={onCreateDirectory}
               onDelete={onDelete} onRename={onRename} activeFilePath={activeFilePath} rootPath={rootPath} gitFiles={gitFiles}
-              onMoveFile={onMoveFile} onRefresh={onRefresh} onClipChange={onClipChange} />
+              onMoveFile={onMoveFile} onRefresh={onRefresh} onClipChange={onClipChange}
+              onOpenDiff={onOpenDiff} diffCompare={diffCompare} onSetDiffCompare={onSetDiffCompare}
+              openMenuPath={openMenuPath} onOpenMenu={onOpenMenu} />
           ))}
         </>
       )}
@@ -250,17 +275,31 @@ function TreeNode({
 }
 
 export default function FileExplorer(props: Props) {
-  const [showRootMenu, setShowRootMenu] = useState(false);
+  const [openMenuPath, setOpenMenuPath] = useState<string | null>(null);
   const [rootMenuPos, setRootMenuPos] = useState({ x: 0, y: 0 });
   const [rootCreating, setRootCreating] = useState<'file' | 'dir' | null>(null);
   const [rootNewName, setRootNewName] = useState('');
   const [clipKey, setClipKey] = useState(0);
   const bumpClip = () => setClipKey(v => v + 1);
+  const wsFolders = props.workspaceFolders || [];
+
+  useEffect(() => {
+    if (openMenuPath) {
+      const handler = (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest('.context-menu') && !target.closest('.tree-node')) {
+          setOpenMenuPath(null);
+        }
+      };
+      document.addEventListener('mousedown', handler);
+      return () => document.removeEventListener('mousedown', handler);
+    }
+  }, [openMenuPath]);
 
   const handleRootContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
+    setOpenMenuPath('__root__');
     setRootMenuPos({ x: e.clientX, y: e.clientY });
-    setShowRootMenu(true);
   };
 
   const handleRootCreate = async () => {
@@ -282,7 +321,7 @@ export default function FileExplorer(props: Props) {
       clipboard = null;
       bumpClip();
     }
-    setShowRootMenu(false);
+    setOpenMenuPath(null);
   };
 
   return (
@@ -290,6 +329,25 @@ export default function FileExplorer(props: Props) {
       className="file-explorer"
       onContextMenu={handleRootContextMenu}
     >
+      {wsFolders.length > 1 && (
+        <div className="workspace-section">
+          <div className="workspace-section-title">
+            <span>Workspace ({wsFolders.length} folders)</span>
+          </div>
+          {wsFolders.map((f) => (
+            <div
+              key={f}
+              className={`workspace-root-item ${f === props.rootPath ? 'active' : ''}`}
+              onClick={() => props.onSwitchRoot?.(f)}
+            >
+              <svg viewBox="0 0 16 16" width="12" height="12" fill="#dcb67a">
+                <path d="M.5 3.5a2 2 0 012-2h3.672a2 2 0 011.414.586l.828.828A2 2 0 009.828 3h3.672a2 2 0 012 2v7a2 2 0 01-2 2H2.5a2 2 0 01-2-2V3.5z" />
+              </svg>
+              <span>{f.split('/').pop()}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {props.nodes.length === 0 ? (
         <div className="empty-tree">No files in directory</div>
       ) : (
@@ -298,7 +356,9 @@ export default function FileExplorer(props: Props) {
             onOpenFile={props.onOpenFile} onCreateFile={props.onCreateFile}
             onCreateDirectory={props.onCreateDirectory} onDelete={props.onDelete} onRename={props.onRename}
             activeFilePath={props.activeFilePath} rootPath={props.rootPath} gitFiles={props.gitFiles}
-            onMoveFile={props.onMoveFile} onRefresh={props.onRefresh} onClipChange={bumpClip} />
+            onMoveFile={props.onMoveFile} onRefresh={props.onRefresh} onClipChange={bumpClip}
+            onOpenDiff={props.onOpenDiff} diffCompare={props.diffCompare} onSetDiffCompare={props.onSetDiffCompare}
+            openMenuPath={openMenuPath} onOpenMenu={setOpenMenuPath} />
         ))
       )}
       {rootCreating && (
@@ -311,12 +371,12 @@ export default function FileExplorer(props: Props) {
           </span>
         </div>
       )}
-      {showRootMenu && (
+      {openMenuPath === '__root__' && (
         <div className="context-menu" style={{ left: rootMenuPos.x, top: rootMenuPos.y }} onClick={(e) => e.stopPropagation()}>
-          {clipboard && <button onClick={handleRootPaste}>Paste</button>}
+          {clipboard && <button onClick={() => { handleRootPaste(); setOpenMenuPath(null); }}>Paste</button>}
           {clipboard && <div className="menu-divider" />}
-          <button onClick={() => { setRootCreating('file'); setShowRootMenu(false); }}>New File</button>
-          <button onClick={() => { setRootCreating('dir'); setShowRootMenu(false); }}>New Folder</button>
+          <button onClick={() => { setRootCreating('file'); setOpenMenuPath(null); }}>New File</button>
+          <button onClick={() => { setRootCreating('dir'); setOpenMenuPath(null); }}>New Folder</button>
         </div>
       )}
     </div>

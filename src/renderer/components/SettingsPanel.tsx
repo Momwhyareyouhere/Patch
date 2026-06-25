@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import type { EditorSettings, AISettings, AIProvider } from '../types';
 import { PROVIDER_PRESETS } from '../types';
 
@@ -32,7 +33,20 @@ export default function SettingsPanel({ settings, onChange, onClose, isOpen }: P
         </div>
         <div className="settings-body">
           <div className="settings-group">
-            <label className="settings-label">Theme</label>
+            <label className="settings-label">UI Theme</label>
+            <select
+              className="settings-select"
+              value={settings.uiTheme}
+              onChange={(e) => update('uiTheme', e.target.value)}
+            >
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+              <option value="hc">High Contrast</option>
+            </select>
+          </div>
+
+          <div className="settings-group">
+            <label className="settings-label">Editor Theme</label>
             <select
               className="settings-select"
               value={settings.theme}
@@ -42,6 +56,31 @@ export default function SettingsPanel({ settings, onChange, onClose, isOpen }: P
               <option value="vs-light">Light</option>
               <option value="hc-black">High Contrast</option>
             </select>
+          </div>
+
+          <div className="settings-group">
+            <label className="settings-label">Accent Color</label>
+            <div className="settings-accent-row">
+              <input
+                type="color"
+                className="settings-color-input"
+                value={settings.accentColor}
+                onChange={(e) => update('accentColor', e.target.value)}
+              />
+              <span className="settings-accent-hex">{settings.accentColor}</span>
+              <div className="theme-preset-row" style={{ marginLeft: 'auto' }}>
+                {['#007acc', '#c5a5c5', '#4ec9b0', '#f44747', '#cca700', '#6fc3df'].map((c) => (
+                  <button
+                    key={c}
+                    className={`theme-preset-btn ${settings.accentColor === c ? 'active' : ''}`}
+                    style={{ borderLeftColor: c, borderLeftWidth: 3 }}
+                    onClick={() => update('accentColor', c)}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="settings-group">
@@ -269,7 +308,136 @@ export default function SettingsPanel({ settings, onChange, onClose, isOpen }: P
               </p>
             )}
           </div>
+
+          <div className="settings-group-title">Workspace Folders</div>
+
+          <WorkspaceFoldersSection folders={settings.workspaceFolders} onChange={(folders) => update('workspaceFolders', folders)} />
+
+          <div className="settings-group-title">Marketplace Repositories</div>
+
+          <MarketplaceReposSection />
         </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkspaceFoldersSection({ folders, onChange }: { folders: string[]; onChange: (folders: string[]) => void }) {
+  const [newFolder, setNewFolder] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const addFolder = async () => {
+    const trimmed = newFolder.trim();
+    if (!trimmed) {
+      const path = await window.api.dialog.openFolder();
+      if (path) {
+        onChange([...folders, path]);
+      }
+      return;
+    }
+    onChange([...folders, trimmed]);
+    setNewFolder('');
+    inputRef.current?.focus();
+  };
+
+  const removeFolder = (folder: string) => {
+    onChange(folders.filter((f) => f !== folder));
+  };
+
+  return (
+    <div className="settings-repo-section">
+      <div className="settings-repo-input-row">
+        <input
+          ref={inputRef}
+          type="text"
+          className="settings-text-input"
+          placeholder="Folder path or click Add to browse..."
+          value={newFolder}
+          onChange={(e) => setNewFolder(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && addFolder()}
+        />
+        <button className="marketplace-repo-add-btn" onClick={addFolder}>Add</button>
+      </div>
+      <div className="settings-repo-list">
+        {folders.length === 0 ? (
+          <p className="settings-hint" style={{ margin: '4px 0' }}>No additional workspace folders</p>
+        ) : (
+          folders.map((f) => (
+            <div key={f} className="settings-repo-item">
+              <span className="settings-repo-name">{f.split('/').pop()} — <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{f}</span></span>
+              <button className="settings-repo-remove-btn" onClick={() => removeFolder(f)} title="Remove">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+                  <path d="M4.646 4.646a.5.5 0 01.708 0L8 7.293l2.646-2.647a.5.5 0 01.708.708L8.707 8l2.647 2.646a.5.5 0 01-.708.708L8 8.707l-2.646 2.647a.5.5 0 01-.708-.708L7.293 8 4.646 5.354a.5.5 0 010-.708z" />
+                </svg>
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MarketplaceReposSection() {
+  const [repos, setRepos] = useState<string[]>([]);
+  const [newRepo, setNewRepo] = useState('');
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => { loadRepos(); }, []);
+
+  async function loadRepos() {
+    try { setRepos(await window.api.plugins.marketplaceGetRepos()); } catch {}
+  }
+
+  async function addRepo() {
+    const trimmed = newRepo.trim();
+    if (!trimmed) return;
+    setAdding(true);
+    const result = await window.api.plugins.marketplaceAddRepo(trimmed);
+    setAdding(false);
+    if (result.success) {
+      setNewRepo('');
+      loadRepos();
+    } else {
+      alert(result.error || 'Failed to add repo');
+    }
+  }
+
+  async function removeRepo(repo: string) {
+    await window.api.plugins.marketplaceRemoveRepo(repo);
+    loadRepos();
+  }
+
+  return (
+    <div className="settings-repo-section">
+      <div className="settings-repo-input-row">
+        <input
+          type="text"
+          className="settings-text-input"
+          placeholder="user/repo/branch"
+          value={newRepo}
+          onChange={(e) => setNewRepo(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && addRepo()}
+        />
+        <button className="marketplace-repo-add-btn" onClick={addRepo} disabled={!newRepo.trim() || adding}>
+          {adding ? '...' : 'Add'}
+        </button>
+      </div>
+      <div className="settings-repo-list">
+        {repos.length === 0 ? (
+          <p className="settings-hint" style={{ margin: '4px 0' }}>No custom repositories added</p>
+        ) : (
+          repos.map((r) => (
+            <div key={r} className="settings-repo-item">
+              <span className="settings-repo-name">{r}</span>
+              <button className="settings-repo-remove-btn" onClick={() => removeRepo(r)} title="Remove">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+                  <path d="M4.646 4.646a.5.5 0 01.708 0L8 7.293l2.646-2.647a.5.5 0 01.708.708L8.707 8l2.647 2.646a.5.5 0 01-.708.708L8 8.707l-2.646 2.647a.5.5 0 01-.708-.708L7.293 8 4.646 5.354a.5.5 0 010-.708z" />
+                </svg>
+              </button>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

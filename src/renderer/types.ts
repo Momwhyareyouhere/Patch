@@ -140,8 +140,11 @@ export interface EditorSettings {
   autoSave: boolean;
   autoSaveDelay: number;
   theme: 'vs-dark' | 'vs-light' | 'hc-black';
+  uiTheme: 'dark' | 'light' | 'hc';
+  accentColor: string;
   showHiddenFiles: boolean;
   recentFolders: string[];
+  workspaceFolders: string[];
   zenMode: boolean;
   ai: AISettings;
 }
@@ -156,8 +159,11 @@ export const DEFAULT_SETTINGS: EditorSettings = {
   autoSave: false,
   autoSaveDelay: 1000,
   theme: 'vs-dark',
+  uiTheme: 'dark',
+  accentColor: '#007acc',
   showHiddenFiles: false,
   recentFolders: [],
+  workspaceFolders: [],
   zenMode: false,
   ai: {
     provider: 'opencode',

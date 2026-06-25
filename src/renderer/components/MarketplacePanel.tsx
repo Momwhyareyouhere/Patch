@@ -10,14 +10,8 @@ export default function MarketplacePanel({ onRefreshPlugins, onOpenPlugin }: Pro
   const [plugins, setPlugins] = useState<MarketplacePlugin[]>([]);
   const [loading, setLoading] = useState(true);
   const [installing, setInstalling] = useState<string | null>(null);
-  const [repos, setRepos] = useState<string[]>([]);
-  const [newRepo, setNewRepo] = useState('');
-  const [showRepoInput, setShowRepoInput] = useState(false);
 
-  useEffect(() => {
-    load();
-    loadRepos();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   async function load() {
     setLoading(true);
@@ -26,13 +20,6 @@ export default function MarketplacePanel({ onRefreshPlugins, onOpenPlugin }: Pro
       setPlugins(list);
     } catch {}
     setLoading(false);
-  }
-
-  async function loadRepos() {
-    try {
-      const list = await window.api.plugins.marketplaceGetRepos();
-      setRepos(list);
-    } catch {}
   }
 
   async function handleInstall(id: string, repo?: string) {
@@ -47,28 +34,6 @@ export default function MarketplacePanel({ onRefreshPlugins, onOpenPlugin }: Pro
       }
     } catch {}
     setInstalling(null);
-  }
-
-  async function handleAddRepo() {
-    const trimmed = newRepo.trim();
-    if (!trimmed) return;
-    const result = await window.api.plugins.marketplaceAddRepo(trimmed);
-    if (result.success) {
-      setNewRepo('');
-      setShowRepoInput(false);
-      loadRepos();
-      setPlugins([]);
-      load();
-    } else {
-      alert(result.error || 'Failed to add repo');
-    }
-  }
-
-  async function handleRemoveRepo(repo: string) {
-    await window.api.plugins.marketplaceRemoveRepo(repo);
-    loadRepos();
-    setPlugins([]);
-    load();
   }
 
   return (
@@ -115,44 +80,6 @@ export default function MarketplacePanel({ onRefreshPlugins, onOpenPlugin }: Pro
           ))}
         </div>
       )}
-
-      <div className="marketplace-bottom">
-        <div className="marketplace-bottom-header" onClick={() => setShowRepoInput(!showRepoInput)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') setShowRepoInput(!showRepoInput); }}>
-          <span>Repositories</span>
-          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" style={{ transform: showRepoInput ? 'rotate(90deg)' : undefined, transition: 'transform 0.1s' }}>
-            <path d="M4.646 1.646a.5.5 0 01.708 0l6 6a.5.5 0 010 .708l-6 6a.5.5 0 01-.708-.708L10.293 8 4.646 2.354a.5.5 0 010-.708z" />
-          </svg>
-        </div>
-        {showRepoInput && (
-          <div className="marketplace-repo-section">
-            <div className="marketplace-repo-input-row">
-              <input
-                className="search-input"
-                type="text"
-                placeholder="user/repo/branch"
-                value={newRepo}
-                onChange={(e) => setNewRepo(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddRepo()}
-              />
-              <button className="marketplace-repo-add-btn" onClick={handleAddRepo} disabled={!newRepo.trim()}>Add</button>
-            </div>
-            {repos.length > 0 && (
-              <div className="marketplace-repo-list">
-                {repos.map((r) => (
-                  <div key={r} className="marketplace-repo-item">
-                    <span className="marketplace-repo-name">{r}</span>
-                    <button className="marketplace-repo-remove" onClick={() => handleRemoveRepo(r)} title="Remove">
-                      <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-                        <path d="M4.646 4.646a.5.5 0 01.708 0L8 7.293l2.646-2.647a.5.5 0 01.708.708L8.707 8l2.647 2.646a.5.5 0 01-.708.708L8 8.707l-2.646 2.647a.5.5 0 01-.708-.708L7.293 8 4.646 5.354a.5.5 0 010-.708z" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

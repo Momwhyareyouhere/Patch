@@ -93,7 +93,7 @@ function createWindow() {
     {
       label: 'Help',
       submenu: [
-        { label: 'About Patch', click: () => { dialog.showMessageBox(mainWindow!, { type: 'info', title: 'About Patch', message: 'Patch v1.0.3', detail: 'A lightweight code editor built with Electron, Monaco Editor, and React.\n\nCreated by Momwhyareyouhere.' }); } },
+        { label: 'About Patch', click: () => { dialog.showMessageBox(mainWindow!, { type: 'info', title: 'About Patch', message: 'Patch v1.0.4', detail: 'A lightweight code editor built with Electron, Monaco Editor, and React.\n\nCreated by Momwhyareyouhere.' }); } },
         { label: 'Keyboard Shortcuts', click: () => mainWindow?.webContents.send('menu-shortcuts') },
       ],
     },
@@ -249,7 +249,8 @@ async function loadSettings(): Promise<any> {
       fontSize: 14, fontFamily: "'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
       tabSize: 2, wordWrap: 'off', minimap: true, lineNumbers: 'on',
       autoSave: false, autoSaveDelay: 1000, theme: 'vs-dark',
-      showHiddenFiles: false, recentFolders: [], zenMode: false,
+      uiTheme: 'dark', accentColor: '#007acc',
+      showHiddenFiles: false, recentFolders: [], workspaceFolders: [], zenMode: false,
       ai: {
         provider: 'opencode', apiKey: '',
         endpoint: 'https://opencode.ai/zen/v1/chat/completions', model: 'deepseek-v4-flash-free',

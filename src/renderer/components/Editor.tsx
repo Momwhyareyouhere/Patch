@@ -1,4 +1,4 @@
-import Editor from '@monaco-editor/react';
+import Editor, { DiffEditor } from '@monaco-editor/react';
 import type { OpenTab, EditorSettings, PluginInfo } from '../types';
 import ImagePreview from './ImagePreview';
 
@@ -99,6 +99,50 @@ export default function MonacoEditor({ tab, onChange, settings, onCursorChange, 
         </div>
       );
     }
+  }
+
+  if (tab.language === 'diff' && tab.path.startsWith('diff://')) {
+    let original = '', modified = '', language = 'plaintext';
+    try {
+      const parsed = JSON.parse(tab.content);
+      original = parsed.original || '';
+      modified = parsed.modified || '';
+      language = parsed.language || 'plaintext';
+    } catch {}
+    const parts = tab.path.replace('diff://', '').split('|<|');
+    const origName = parts[0]?.split('/').pop() || 'original';
+    const modName = parts[1]?.split('/').pop() || 'modified';
+    return (
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div className="diff-header">
+          <div className="diff-header-files">
+            <span className="diff-file-label original">{origName}</span>
+            <span className="diff-vs">↔</span>
+            <span className="diff-file-label modified">{modName}</span>
+          </div>
+        </div>
+        <div className="diff-editor-container">
+          <DiffEditor
+            theme={settings.theme}
+            language={language}
+            original={original}
+            modified={modified}
+            options={{
+              fontSize: settings.fontSize,
+              fontFamily: settings.fontFamily,
+              fontLigatures: true,
+              lineNumbers: settings.lineNumbers,
+              minimap: { enabled: settings.minimap, showSlider: 'mouseover' },
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              renderSideBySide: true,
+              readOnly: true,
+              domReadOnly: true,
+            }}
+          />
+        </div>
+      </div>
+    );
   }
 
   const isOutput = tab.path.startsWith('output://');

@@ -11,9 +11,10 @@ interface Props {
   gitBranch: string | null;
   showAI: boolean;
   onToggleAI: () => void;
+  workspaceFolders?: string[];
 }
 
-export default function StatusBar({ statusText, tab, rootPath, line, column, settings, gitBranch, showAI, onToggleAI }: Props) {
+export default function StatusBar({ statusText, tab, rootPath, line, column, settings, gitBranch, showAI, onToggleAI, workspaceFolders }: Props) {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -60,13 +61,15 @@ export default function StatusBar({ statusText, tab, rootPath, line, column, set
             <span className="status-separator" />
             <span className="status-item">Spaces: {settings.tabSize}</span>
             <span className="status-separator" />
-            <span className="status-item">{settings.theme === 'vs-dark' ? 'Dark' : settings.theme === 'vs-light' ? 'Light' : 'HC'}</span>
+            <span className="status-item">{settings.uiTheme === 'dark' ? 'Dark' : settings.uiTheme === 'light' ? 'Light' : 'HC'}</span>
+            <span className="status-separator" />
+            <span className="status-item" style={{ background: settings.accentColor + '22', color: settings.accentColor }}>{settings.accentColor}</span>
           </>
         )}
         {rootPath && (
           <>
             {tab && <span className="status-separator" />}
-            <span className="status-item" title={rootPath}>{rootPath.split('/').pop()}</span>
+            <span className="status-item" title={rootPath}>{rootPath.split('/').pop()}{workspaceFolders && workspaceFolders.length > 1 ? ` +${workspaceFolders.length - 1}` : ''}</span>
           </>
         )}
         <span className="status-separator" />

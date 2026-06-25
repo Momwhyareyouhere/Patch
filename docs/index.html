@@ -3,280 +3,49 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Patch — Editor & Plugin API</title>
-<style>
-  :root {
-    --bg: #0d1117;
-    --bg2: #161b22;
-    --bg3: #21262d;
-    --border: #30363d;
-    --text: #e6edf3;
-    --text-muted: #8b949e;
-    --accent: #58a6ff;
-    --accent2: #3fb950;
-    --accent3: #d2a8ff;
-    --orange: #d29922;
-    --red: #f85149;
-    --sidebar-w: 260px;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.6;
-    display: flex;
-    min-height: 100vh;
-  }
-  .sidebar {
-    width: var(--sidebar-w);
-    background: var(--bg2);
-    border-right: 1px solid var(--border);
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    overflow-y: auto;
-    z-index: 10;
-  }
-  .sidebar::-webkit-scrollbar { width: 6px; }
-  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-  .sidebar-header {
-    padding: 20px 16px 12px;
-    border-bottom: 1px solid var(--border);
-  }
-  .sidebar-header h1 {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--accent);
-  }
-  .sidebar-header p {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-top: 2px;
-  }
-  .sidebar-nav { padding: 8px 0; }
-  .sidebar-nav a {
-    display: block;
-    padding: 6px 16px;
-    color: var(--text-muted);
-    text-decoration: none;
-    font-size: 13px;
-    transition: color 0.15s;
-  }
-  .sidebar-nav a:hover { color: var(--text); }
-  .sidebar-nav .section-label {
-    padding: 14px 16px 4px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-  }
-  .main {
-    margin-left: var(--sidebar-w);
-    flex: 1;
-    max-width: 100%;
-    padding: 40px 48px 80px;
-  }
-  @media (max-width: 768px) {
-    .sidebar { display: none; }
-    .main { margin-left: 0; padding: 24px 20px; }
-  }
-  h2 {
-    font-size: 28px;
-    font-weight: 700;
-    margin: 40px 0 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border);
-  }
-  h2:first-of-type { margin-top: 0; }
-  h3 {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 32px 0 8px;
-    color: var(--accent);
-  }
-  h4 {
-    font-size: 15px;
-    font-weight: 600;
-    margin: 24px 0 6px;
-  }
-  p { margin: 8px 0; font-size: 14px; color: var(--text-muted); }
-  p.lead { font-size: 16px; color: var(--text); }
-  code {
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
-    font-size: 13px;
-    background: var(--bg3);
-    padding: 2px 6px;
-    border-radius: 4px;
-    color: var(--accent2);
-  }
-  pre {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 16px 20px;
-    margin: 12px 0;
-    overflow-x: auto;
-    font-size: 13px;
-    line-height: 1.5;
-  }
-  pre code { background: none; padding: 0; color: var(--text); }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 12px 0;
-    font-size: 14px;
-  }
-  th, td {
-    padding: 8px 12px;
-    text-align: left;
-    border: 1px solid var(--border);
-  }
-  th {
-    background: var(--bg2);
-    font-weight: 600;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--text-muted);
-  }
-  td { color: var(--text); }
-  ul, ol { margin: 8px 0; padding-left: 24px; font-size: 14px; color: var(--text-muted); }
-  li { margin: 4px 0; }
-  .badge-api { background: rgba(88,166,255,0.15); color: var(--accent); }
-  .badge-fn { background: rgba(63,185,80,0.15); color: var(--accent2); }
-  .tip {
-    background: rgba(210,168,255,0.08);
-    border-left: 3px solid var(--accent3);
-    padding: 12px 16px;
-    margin: 16px 0;
-    border-radius: 4px;
-    font-size: 14px;
-  }
-  .hero {
-    text-align: center;
-    padding: 56px 0 40px;
-    position: relative;
-    overflow: hidden;
-  }
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: -60%;
-    left: -20%;
-    width: 140%;
-    height: 200%;
-    background: radial-gradient(ellipse at center, rgba(88,166,255,0.06) 0%, transparent 70%);
-    pointer-events: none;
-  }
-  .hero h1 { font-size: 42px; font-weight: 800; position: relative; }
-  .hero h1 span { color: var(--accent); position: relative; }
-  .hero h1 span::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    border-radius: 2px;
-  }
-  .hero p { font-size: 18px; margin-top: 8px; position: relative; }
-  .feature-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 12px;
-    margin: 16px 0;
-  }
-  .feature-card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 16px;
-  }
-  .feature-card { transition: border-color 0.2s, transform 0.2s; }
-  .feature-card:hover { border-color: var(--accent); transform: translateY(-1px); }
-  .feature-card h4 { margin: 0 0 4px; font-size: 14px; }
-  .feature-card p { font-size: 13px; margin: 0; }
-  .shortcut-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px 24px;
-    margin: 12px 0;
-  }
-  .shortcut-grid .key { font-family: monospace; color: var(--accent); }
-  .shortcut-grid .desc { color: var(--text-muted); font-size: 13px; }
-  .footer {
-    margin-top: 48px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-    font-size: 13px;
-    color: var(--text-muted);
-    text-align: center;
-  }
-  :target { scroll-margin-top: 16px; }
-  :target > h2::after, :target > h3::after {
-    content: '';
-    position: absolute;
-    left: -8px;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: var(--accent);
-    border-radius: 2px;
-  }
-</style>
+<title>Patch — A Lightweight Code Editor</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<nav class="sidebar">
-  <div class="sidebar-header">
-    <h1>Patch</h1>
-    <p>v1.0.3 &mdash; Docs</p>
+<div class="sidebar">
+  <div class="sb-header">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <a href="#hero" class="sb-title">Patch Docs</a>
+      <button class="theme-toggle" id="themeBtn" title="Toggle light/dark">&#9681;</button>
+    </div>
   </div>
-  <div class="sidebar-nav">
-    <a href="#about">About Patch</a>
+  <nav class="sb-nav">
+    <a href="#about">About</a>
+    <a href="#quickstart">Quick Start</a>
     <a href="#getting-started">Getting Started</a>
-
-    <div class="section-label">Editor</div>
     <a href="#editor">Editor</a>
+    <a href="#diff-editor">Diff Editor</a>
+    <a href="#theme-picker">Theme Picker</a>
+    <a href="#workspaces">Workspaces</a>
     <a href="#tabs">Tabs &amp; Files</a>
-    <a href="#sidebar">Sidebar</a>
+    <a href="#sidebar">Sidebar Overview</a>
     <a href="#search">Search</a>
     <a href="#command-palette">Command Palette</a>
-    <a href="#shortcuts">Keyboard Shortcuts</a>
+    <a href="#shortcuts">Shortcuts</a>
     <a href="#terminal">Terminal</a>
+    <a href="#git">Git</a>
     <a href="#ai">AI Chat</a>
     <a href="#settings">Settings</a>
-    <a href="#extension-marketplace">Extension Marketplace</a>
+    <a href="#marketplace">Marketplace</a>
+    <a href="#plugin-dev">Plugin Dev</a>
+    <a href="#patch-api">Plugin API</a>
+    <a href="#plugin-lifecycle">Lifecycle</a>
+    <a href="#examples">Examples</a>
+    <a href="#tips">Tips &amp; Ideas</a>
+  </nav>
+</div>
+<div class="container">
 
-    <div class="section-label">Plugin API</div>
-    <a href="#plugin-quickstart">Quick Start</a>
-    <a href="#patch-editor">patch.editor</a>
-    <a href="#patch-ui">patch.ui</a>
-    <a href="#patch-commands">patch.commands</a>
-    <a href="#patch-exec">patch.exec</a>
-    <a href="#patch-fs">patch.fs</a>
-    <a href="#patch-git">patch.git</a>
-    <a href="#patch-monaco">patch.monaco</a>
-    <a href="#patch-events">patch.on / patch.off</a>
-    <a href="#patch-internal">patch.internal</a>
-    <a href="#plugin-lifecycle">Plugin Lifecycle</a>
-    <a href="#plugin-examples">Examples</a>
-    <a href="#plugin-tips">Tips &amp; Ideas</a>
-  </div>
-</nav>
-
-<div class="main">
-
-<div class="hero">
+<div class="hero" id="hero">
   <h1><span>Patch</span></h1>
   <p>A lightweight, extensible code editor built on Electron &amp; Monaco.</p>
 </div>
 
-<!-- ================================================================== -->
 <h2 id="about">About Patch</h2>
 <p class="lead">Patch is a developer-focused code editor with a plugin system, integrated terminal, AI chat, git integration, and full Monaco editor power — all running locally.</p>
 
@@ -289,46 +58,60 @@
   <div class="feature-card"><h4>Git Integration</h4><p>View changed files, stage/unstage, commit, push, pull — all from the sidebar.</p></div>
   <div class="feature-card"><h4>Cross-file Search</h4><p>Search &amp; replace across files with regex, match case, whole word, exclude patterns, and context lines.</p></div>
   <div class="feature-card"><h4>File Management</h4><p>Create, rename, delete, move files and folders. Drag-and-drop support. Hidden file toggling.</p></div>
+  <div class="feature-card"><h4>Theme Picker</h4><p>Customize UI theme (dark/light/high-contrast), editor theme, and accent color — all live-updated.</p></div>
+  <div class="feature-card"><h4>Multi-root Workspaces</h4><p>Open multiple folders in the same window.</p></div>
+  <div class="feature-card"><h4>Diff Editor</h4><p>Compare any two files side-by-side.</p></div>
+  <div class="feature-card"><h4>Image Preview</h4><p>View PNG, JPG, GIF, WebP, BMP, and ICO files inline.</p></div>
 </div>
 
-<!-- ================================================================== -->
-<h2 id="getting-started">Getting Started</h2>
+<h2 id="quickstart">Quick Start — 5-Minute Tutorial</h2>
+<p class="lead">Get something done in Patch right now.</p>
 
+<div class="steps">
+<div class="step"><h4>Open a Folder</h4><p>Press <kbd>Ctrl+O</kbd> (or <kbd>Cmd+O</kbd> on Mac) to open a project folder. You can also drag a folder onto the window. The file explorer shows your project tree in the sidebar.</p></div>
+<div class="step"><h4>Edit a File</h4><p>Click any file in the explorer to open it. Start typing — Monaco gives you syntax highlighting, autocomplete, and IntelliSense. Press <kbd>Ctrl+S</kbd> to save.</p></div>
+<div class="step"><h4>Search Across Files</h4><p>Press <kbd>Ctrl+Shift+F</kbd> to open the search sidebar. Type a query to find matching lines. Use <code>.*</code> for regex, <code>Aa</code> for case-sensitive matching.</p></div>
+<div class="step"><h4>Run a Git Commit</h4><p>Open Source Control in the sidebar. Type a commit message and click <strong>Commit</strong>. Push to sync with remote.</p></div>
+<div class="step"><h4>Open the Command Palette</h4><p>Press <kbd>Ctrl+Shift+P</kbd>. Type any command — "Toggle Terminal", "Format Document", "Toggle Minimap". Plugin commands appear here too.</p></div>
+</div>
+
+<h2 id="getting-started">Getting Started</h2>
 <h3>Installation</h3>
 <pre><code>git clone https://github.com/Momwhyareyouhere/Patch.git
 cd patch
 npm install
 npm start</code></pre>
-
 <h3>Build for Distribution</h3>
 <pre><code>npm run build           # esbuild — outputs to dist/
 npm run dist:linux      # AppImage
 npm run dist:mac        # DMG
 npm run dist:win        # NSIS installer</code></pre>
 
-<h3>Open a Folder</h3>
-<p>Click <strong>Open Folder</strong> on the welcome screen, or drag a folder onto the window. The file explorer shows your project tree.</p>
-
-<!-- ================================================================== -->
 <h2 id="editor">Editor</h2>
 <p class="lead">Patch uses the <a href="https://microsoft.github.io/monaco-editor/" style="color:var(--accent)">Monaco Editor</a> — the same engine that powers VS Code.</p>
 
-<h3>Features</h3>
+<h3>Core Features</h3>
 <ul>
-  <li><strong>Syntax highlighting</strong> — JavaScript, TypeScript, Python, JSON, HTML, CSS, Markdown, and 100+ languages</li>
+  <li><strong>Syntax highlighting</strong> — 100+ languages auto-detected from file extension</li>
   <li><strong>IntelliSense</strong> — autocomplete, parameter hints, go-to-definition, find references</li>
-  <li><strong>Multi-cursor</strong> — <code>Alt+Click</code> to add cursors, <code>Ctrl+Alt+Up/Down</code> for column selection</li>
-  <li><strong>Find &amp; Replace</strong> — <code>Ctrl+F</code> for in-file, <code>Ctrl+Shift+F</code> for cross-file search</li>
+  <li><strong>Multi-cursor</strong> — <kbd>Alt+Click</kbd> to add cursors, <kbd>Ctrl+Alt+Up/Down</kbd> for column selection</li>
+  <li><strong>Bracket pair colorization</strong> — matching brackets highlighted in color</li>
+  <li><strong>Auto-closing brackets and quotes</strong> — always on</li>
+  <li><strong>Font ligatures</strong> — enabled by default</li>
+  <li><strong>Smooth scrolling &amp; cursor animations</strong></li>
   <li><strong>Minimap</strong> — toggle in settings or via command palette</li>
-  <li><strong>Breadcrumbs</strong> — show file path above the editor</li>
-  <li><strong>Zen Mode</strong> — hides sidebar and panels for distraction-free editing</li>
+  <li><strong>Breadcrumbs</strong> — clickable file path above the editor</li>
+  <li><strong>Zen Mode</strong> — <kbd>Ctrl+K Z</kbd> hides all panels for distraction-free editing</li>
 </ul>
 
-<h3>Built-in Commands (in-editor)</h3>
+<h3>Image Preview</h3>
+<p>When you open an image file (<code>.png</code>, <code>.jpg</code>, <code>.gif</code>, <code>.ico</code>, <code>.webp</code>, <code>.bmp</code>), Patch shows a centered image preview with the filename header instead of the text editor.</p>
+
+<h3>Built-in Commands</h3>
 <table>
   <tr><th>Command</th><th>Shortcut</th></tr>
-  <tr><td>Toggle Comment</td><td><code>Ctrl+/</code></td></tr>
-  <tr><td>Format Document</td><td><code>Shift+Alt+F</code></td></tr>
+  <tr><td>Toggle Comment</td><td><kbd>Ctrl+/</kbd></td></tr>
+  <tr><td>Format Document</td><td><kbd>Shift+Alt+F</kbd></td></tr>
   <tr><td>Duplicate Line</td><td>Command palette</td></tr>
   <tr><td>Delete Line</td><td>Command palette</td></tr>
   <tr><td>Uppercase / Lowercase / Title Case</td><td>Command palette</td></tr>
@@ -337,13 +120,69 @@ npm run dist:win        # NSIS installer</code></pre>
   <tr><td>Toggle Minimap</td><td>Command palette</td></tr>
 </table>
 
-<!-- ================================================================== -->
+<h2 id="diff-editor">Diff Editor</h2>
+<p class="lead">Compare any two files side-by-side using Monaco's built-in diff editor.</p>
+
+<h3>How to Use</h3>
+<ol>
+  <li>Right-click a file in the explorer and select <strong>Select for Compare</strong></li>
+  <li>Right-click another file and select <strong>Compare with Selected</strong></li>
+  <li>A diff tab opens showing the original (left) and modified (right) versions with inline change highlighting</li>
+</ol>
+
+<h3>Features</h3>
+<ul>
+  <li>Added lines highlighted in green, removed in red, changed in yellow</li>
+  <li>Navigation arrows to jump between individual changes</li>
+  <li>Clear the comparison at any time with <strong>Clear Compare Reference</strong> from the command palette</li>
+</ul>
+
+<h2 id="theme-picker">Theme Picker</h2>
+<p class="lead">Customize the look and feel of Patch from the settings panel (<kbd>Ctrl+,</kbd>).</p>
+
+<h3>UI Theme</h3>
+<ul>
+  <li><strong>Dark</strong> — default, deep backgrounds with warm text</li>
+  <li><strong>Light</strong> — clean surfaces for bright environments</li>
+  <li><strong>High Contrast</strong> — maximum contrast for accessibility</li>
+</ul>
+
+<h3>Editor Theme</h3>
+<p>Choose from Monaco's built-in themes: <code>vs-dark</code> (default), <code>vs-light</code>, or <code>hc-black</code>.</p>
+
+<h3>Accent Color</h3>
+<p>Pick from 6 preset accent colors or enter a custom hex value. Applied live to the activity bar, buttons, links, highlights, and status bar.</p>
+<ul>
+  <li><span style="color:#007acc">&#9632;</span> Blue (#007acc) &mdash; default</li>
+  <li><span style="color:#c5a5c5">&#9632;</span> Purple (#c5a5c5)</li>
+  <li><span style="color:#4ec9b0">&#9632;</span> Teal (#4ec9b0)</li>
+  <li><span style="color:#f44747">&#9632;</span> Red (#f44747)</li>
+  <li><span style="color:#cca700">&#9632;</span> Orange (#cca700)</li>
+  <li><span style="color:#6fc3df">&#9632;</span> Sky (#6fc3df)</li>
+</ul>
+
+<h2 id="workspaces">Multi-root Workspaces</h2>
+<p class="lead">Work with multiple project folders in a single window.</p>
+
+<h3>Adding Folders</h3>
+<ul>
+  <li>Open <strong>Settings</strong> (<kbd>Ctrl+,</kbd>) and use the <strong>Workspace Folders</strong> section</li>
+  <li>Run <strong>Add Folder to Workspace</strong> from the command palette</li>
+  <li>Each folder appears as a separate root in the file explorer, with the active folder highlighted</li>
+</ul>
+
+<h3>Removing Folders</h3>
+<p>Click the X button next to any folder in the workspace list within settings. The status bar shows the current folder count (e.g. <code>project-name +2</code>).</p>
+
+<div class="info">Workspace folders are saved to <code>~/.patch-settings.json</code> and survive restarts.</div>
+
 <h2 id="tabs">Tabs &amp; Files</h2>
+<p class="lead">Open, save, and manage files across multiple tabs.</p>
 
 <h3>Opening Files</h3>
 <ul>
   <li>Click a file in the explorer</li>
-  <li><code>Ctrl+O</code> to open a folder</li>
+  <li><kbd>Ctrl+O</kbd> to open a folder</li>
   <li>Drag files or folders onto the window</li>
   <li>Drag a file onto the sidebar to copy it into the project</li>
 </ul>
@@ -351,505 +190,544 @@ npm run dist:win        # NSIS installer</code></pre>
 <h3>Tab Management</h3>
 <table>
   <tr><th>Action</th><th>Shortcut</th></tr>
-  <tr><td>Close tab</td><td><code>Ctrl+W</code></td></tr>
-  <tr><td>Save file</td><td><code>Ctrl+S</code></td></tr>
-  <tr><td>Save all files</td><td><code>Ctrl+Shift+S</code></td></tr>
-  <tr><td>New file</td><td><code>Ctrl+N</code></td></tr>
-  <tr><td>Go to line</td><td><code>Ctrl+G</code></td></tr>
+  <tr><td>Close tab</td><td><kbd>Ctrl+W</kbd></td></tr>
+  <tr><td>Save file</td><td><kbd>Ctrl+S</kbd></td></tr>
+  <tr><td>Save all files</td><td><kbd>Ctrl+Shift+S</kbd></td></tr>
+  <tr><td>New file</td><td><kbd>Ctrl+N</kbd></td></tr>
+  <tr><td>Go to line</td><td><kbd>Ctrl+G</kbd></td></tr>
+  <tr><td>Middle-click close</td><td>Mouse button 1 on tab</td></tr>
 </table>
 
-<p>Changes are tracked with a dirty indicator on the tab. Autosave can be enabled in settings.</p>
+<div class="info">Changes are tracked with a dirty indicator (dot) on unsaved tabs. Autosave can be enabled in settings with a configurable delay (default 1000ms).</div>
 
-<!-- ================================================================== -->
 <h2 id="sidebar">Sidebar</h2>
-<p class="lead">The sidebar provides project navigation, search, version control, and more. Toggle with <code>Ctrl+B</code>.</p>
+<p class="lead">The sidebar provides project navigation, search, version control, and more. Toggle with <kbd>Ctrl+B</kbd>.</p>
 
 <h3>Explorer</h3>
-<p>File tree with create, rename, delete, move actions. Toggle hidden files with the eye icon. Right-click context menu for common operations.</p>
+<p>File tree with create, rename, delete, and move actions. Right-click context menu for common operations. Toggle hidden files with the eye icon. File icons with colored monograms for 40+ file types.</p>
 
 <h3>Search</h3>
-<p>Full-text search across all files in the opened folder. Supports regex, match case, whole word, exclude patterns, and context lines. Open with <code>Ctrl+Shift+F</code>.</p>
+<p>Full-text search across all files. Supports regex, match case, whole word, exclude patterns, and context lines. <kbd>Ctrl+Shift+F</kbd> to open.</p>
 
 <h3>Source Control (Git)</h3>
-<p>View changed files grouped by status (modified, added, deleted, untracked). Stage/unstage files, commit with message, push/pull. Auto-polls every 5 seconds.</p>
+<p>View changed files grouped by status. Stage/unstage, commit, push, pull. Shows current branch name.</p>
 
 <h3>Outline</h3>
-<p>Shows a structural outline of the active file (classes, functions, imports). Click a symbol to jump to it.</p>
+<p>Shows a structural outline of the active file — classes, functions, interfaces, imports. Click a symbol to jump to that line. Supports TS, JS, Python, Java. <kbd>Ctrl+Shift+O</kbd> to open.</p>
+
+<h3>Problems</h3>
+<p>Lists errors and warnings with severity icons and file:line references. Click a problem to jump to the offending line. <kbd>Ctrl+Shift+M</kbd> to toggle.</p>
 
 <h3>Plugins Panel</h3>
-<p>Manage plugins — toggle them on/off, view metadata, reload all plugins from disk. <code>Ctrl+Shift+J</code> to open.</p>
+<p>Manage installed plugins — toggle on/off, view metadata, reload all from disk. <kbd>Ctrl+Shift+J</kbd> to open.</p>
 
 <h3>Plugin Views</h3>
-<p>Any registered plugin sidebar view gets its own icon in the activity bar. Click to show that plugin's panel.</p>
+<p>Registered plugin sidebar views get their own icon in the activity bar. Click to show that plugin's panel.</p>
 
-<!-- ================================================================== -->
 <h2 id="search">Search</h2>
-<p class="lead">Full-text search across all files in the opened folder. Open with <code>Ctrl+Shift+F</code>.</p>
+<p class="lead">Cross-file search with replace. <kbd>Ctrl+Shift+F</kbd> to open.</p>
 
 <h3>Basic Search</h3>
-<p>Type a query to find matching files and lines. Results show file name, line number, and the matching line content. Click a result to jump to that location.</p>
+<p>Type a query to find matching files and lines. Results show file name, line number, and the matching content. Click a result to jump there.</p>
 
 <h3>Advanced Options</h3>
 <table>
   <tr><th>Option</th><th>Description</th></tr>
-  <tr><td><strong>Regex</strong> (<code>.*</code>)</td><td>Search using regular expressions instead of plain text</td></tr>
+  <tr><td><strong>Regex</strong> (<code>.*</code>)</td><td>Search using regular expressions</td></tr>
   <tr><td><strong>Match Case</strong> (<code>Aa</code>)</td><td>Case-sensitive matching</td></tr>
-  <tr><td><strong>Whole Word</strong> (<code>ab|</code>)</td><td>Match only whole words (word boundaries)</td></tr>
-  <tr><td><strong>Exclude Pattern</strong></td><td>Filter out files matching a glob pattern (e.g. <code>*.log</code>, <code>dist/**</code>)</td></tr>
-  <tr><td><strong>Context Lines</strong></td><td>Show 0–5 lines of surrounding context per match</td></tr>
+  <tr><td><strong>Whole Word</strong> (<code>ab|</code>)</td><td>Match only whole words</td></tr>
+  <tr><td><strong>Exclude Pattern</strong></td><td>Filter out files matching a glob (e.g. <code>dist/**</code>)</td></tr>
+  <tr><td><strong>Context Lines</strong></td><td>Show 0–5 lines of surrounding context</td></tr>
+  <tr><td><strong>File Pattern</strong></td><td>Restrict to specific file patterns (e.g. <code>*.ts</code>)</td></tr>
 </table>
 
 <h3>Replace</h3>
-<p>Replace matching text across all files or one file at a time. All search options (regex, case, whole word) apply to replace operations as well.</p>
+<p>Toggle replace mode with the arrow button. Replace across all files or one file at a time. All search options apply to replace. Max 1000 results.</p>
 
-<!-- ================================================================== -->
 <h2 id="command-palette">Command Palette</h2>
-<p class="lead">Press <code>Ctrl+Shift+P</code> to open the command palette. Start typing to filter. Built-in commands include:</p>
+<p class="lead">Press <kbd>Ctrl+Shift+P</kbd> to open. Start typing to filter. Plugin-registered commands appear here too.</p>
 
-<div class="shortcut-grid">
-  <span class="key">Open Folder</span><span class="desc">Open a project folder</span>
-  <span class="key">Save File</span><span class="desc">Save current file</span>
-  <span class="key">Save All Files</span><span class="desc">Save all dirty files</span>
-  <span class="key">New File</span><span class="desc">Create a new file</span>
-  <span class="key">Close Current Tab</span><span class="desc">Close active tab</span>
-  <span class="key">Search in Files</span><span class="desc">Open search sidebar</span>
-  <span class="key">Open Settings</span><span class="desc">Open settings panel</span>
-  <span class="key">Toggle Terminal</span><span class="desc">Toggle terminal panel</span>
-  <span class="key">Toggle Sidebar</span><span class="desc">Toggle sidebar visibility</span>
-  <span class="key">Toggle Zen Mode</span><span class="desc">Distraction-free mode</span>
-  <span class="key">Go to Line</span><span class="desc">Navigate to a line number</span>
-  <span class="key">Show Outline</span><span class="desc">Open outline sidebar</span>
-  <span class="key">Show Problems</span><span class="desc">Toggle problems panel</span>
-  <span class="key">Toggle AI Chat</span><span class="desc">Toggle AI assistant</span>
-  <span class="key">Toggle Plugins</span><span class="desc">Open plugin manager</span>
-  <span class="key">Toggle Hidden Files</span><span class="desc">Show/hide dotfiles</span>
-  <span class="key">Format JSON</span><span class="desc">Pretty-print JSON</span>
-  <span class="key">Generate UUID</span><span class="desc">Insert a UUID</span>
-  <span class="key">UPPERCASE / lowercase / Title Case</span><span class="desc">Transform selection</span>
-  <span class="key">Show Word Count</span><span class="desc">Count words &amp; chars</span>
-  <span class="key">Duplicate / Delete Line</span><span class="desc">Edit lines</span>
-  <span class="key">Toggle Minimap</span><span class="desc">Toggle minimap</span>
-</div>
-<p>Plugin-registered commands also appear here.</p>
+<table>
+  <tr><th>Command</th><th>Description</th></tr>
+  <tr><td>Open Folder</td><td>Open a project folder</td></tr>
+  <tr><td>Save File</td><td>Save current file</td></tr>
+  <tr><td>Save All Files</td><td>Save all dirty files</td></tr>
+  <tr><td>New File</td><td>Create a new file</td></tr>
+  <tr><td>Close Current Tab</td><td>Close active tab</td></tr>
+  <tr><td>Search in Files</td><td>Open search sidebar</td></tr>
+  <tr><td>Open Settings</td><td>Open settings panel</td></tr>
+  <tr><td>Toggle Terminal</td><td>Toggle terminal panel</td></tr>
+  <tr><td>Toggle Sidebar</td><td>Toggle sidebar visibility</td></tr>
+  <tr><td>Toggle Zen Mode</td><td>Distraction-free editing</td></tr>
+  <tr><td>Go to Line</td><td>Navigate to a line number</td></tr>
+  <tr><td>Show Outline</td><td>Open outline sidebar</td></tr>
+  <tr><td>Show Problems</td><td>Toggle problems panel</td></tr>
+  <tr><td>Toggle AI Chat</td><td>Toggle AI assistant</td></tr>
+  <tr><td>Toggle Plugins</td><td>Open plugin manager</td></tr>
+  <tr><td>Toggle Hidden Files</td><td>Show/hide dotfiles</td></tr>
+  <tr><td>Format JSON</td><td>Pretty-print JSON</td></tr>
+  <tr><td>Generate UUID</td><td>Insert a UUID</td></tr>
+  <tr><td>UPPERCASE / lowercase / Title Case</td><td>Transform selection</td></tr>
+  <tr><td>Show Word Count</td><td>Count words &amp; chars</td></tr>
+  <tr><td>Duplicate / Delete Line</td><td>Edit lines</td></tr>
+  <tr><td>Toggle Minimap</td><td>Toggle minimap</td></tr>
+  <tr><td>Add Folder to Workspace</td><td>Add a workspace folder</td></tr>
+  <tr><td>Clear Compare Reference</td><td>Clear diff comparison</td></tr>
+</table>
 
-<!-- ================================================================== -->
 <h2 id="shortcuts">Keyboard Shortcuts</h2>
+<p class="lead">Complete list of default keyboard shortcuts.</p>
+
 <table>
   <tr><th>Shortcut</th><th>Action</th></tr>
-  <tr><td><code>Ctrl+Shift+P</code></td><td>Command palette</td></tr>
-  <tr><td><code>Ctrl+Shift+F</code></td><td>Search in files</td></tr>
-  <tr><td><code>Ctrl+Shift+O</code></td><td>Show outline</td></tr>
-  <tr><td><code>Ctrl+Shift+M</code></td><td>Show problems</td></tr>
-  <tr><td><code>Ctrl+Shift+J</code></td><td>Plugins panel</td></tr>
-  <tr><td><code>Ctrl+B</code></td><td>Toggle sidebar</td></tr>
-  <tr><td><code>Ctrl+`</code></td><td>Toggle terminal</td></tr>
-  <tr><td><code>Ctrl+,</code></td><td>Open settings</td></tr>
-  <tr><td><code>Ctrl+O</code></td><td>Open folder</td></tr>
-  <tr><td><code>Ctrl+N</code></td><td>New file</td></tr>
-  <tr><td><code>Ctrl+S</code></td><td>Save file</td></tr>
-  <tr><td><code>Ctrl+Shift+S</code></td><td>Save all files</td></tr>
-  <tr><td><code>Ctrl+W</code></td><td>Close tab</td></tr>
-  <tr><td><code>Ctrl+G</code></td><td>Go to line</td></tr>
-  <tr><td><code>Ctrl+/</code></td><td>Toggle comment</td></tr>
-  <tr><td><code>Shift+Alt+F</code></td><td>Format document</td></tr>
-  <tr><td><code>Ctrl+K</code> then <code>I</code></td><td>Toggle AI chat</td></tr>
-  <tr><td><code>Ctrl+K</code> then <code>H</code></td><td>Command palette</td></tr>
-  <tr><td><code>Escape</code></td><td>Close modals / panels</td></tr>
+  <tr><td><kbd>Ctrl+Shift+P</kbd></td><td>Command palette</td></tr>
+  <tr><td><kbd>Ctrl+Shift+F</kbd></td><td>Search in files</td></tr>
+  <tr><td><kbd>Ctrl+Shift+O</kbd></td><td>Show outline</td></tr>
+  <tr><td><kbd>Ctrl+Shift+M</kbd></td><td>Show problems</td></tr>
+  <tr><td><kbd>Ctrl+Shift+J</kbd></td><td>Plugins panel</td></tr>
+  <tr><td><kbd>Ctrl+Shift+N</kbd></td><td>New window</td></tr>
+  <tr><td><kbd>Ctrl+B</kbd></td><td>Toggle sidebar</td></tr>
+  <tr><td><kbd>Ctrl+`</kbd></td><td>Toggle terminal</td></tr>
+  <tr><td><kbd>Ctrl+,</kbd></td><td>Open settings</td></tr>
+  <tr><td><kbd>Ctrl+O</kbd></td><td>Open folder</td></tr>
+  <tr><td><kbd>Ctrl+N</kbd></td><td>New file</td></tr>
+  <tr><td><kbd>Ctrl+S</kbd></td><td>Save file</td></tr>
+  <tr><td><kbd>Ctrl+Shift+S</kbd></td><td>Save all files</td></tr>
+  <tr><td><kbd>Ctrl+W</kbd></td><td>Close tab</td></tr>
+  <tr><td><kbd>Ctrl+G</kbd></td><td>Go to line</td></tr>
+  <tr><td><kbd>Ctrl+/</kbd></td><td>Toggle comment</td></tr>
+  <tr><td><kbd>Shift+Alt+F</kbd></td><td>Format document</td></tr>
+  <tr><td><kbd>Ctrl+K</kbd> then <kbd>I</kbd></td><td>Toggle AI chat</td></tr>
+  <tr><td><kbd>Ctrl+K</kbd> then <kbd>Z</kbd></td><td>Toggle Zen Mode</td></tr>
+  <tr><td><kbd>Ctrl+K</kbd> then <kbd>H</kbd></td><td>Keyboard shortcuts help</td></tr>
+  <tr><td><kbd>Escape</kbd></td><td>Close modals / panels</td></tr>
 </table>
 
-<!-- ================================================================== -->
-<h2 id="terminal">Terminal</h2>
-<p class="lead">Integrated terminal powered by xterm.js and node-pty. Toggle with <code>Ctrl+`</code>.</p>
-<ul>
-  <li>Full terminal emulation — run shell commands, scripts, TUI programs</li>
-  <li>Opens in the project root directory</li>
-  <li>Auto-sizing with the panel</li>
-</ul>
-
-<!-- ================================================================== -->
-<h2 id="ai">AI Chat</h2>
-<p class="lead">Built-in AI assistant. Toggle with <code>Ctrl+K I</code>.</p>
-
-<h3>Supported Providers</h3>
-<table>
-  <tr><th>Provider</th><th>Default Model</th><th>API Key</th></tr>
-  <tr><td>OpenCode (free)</td><td><code>big-pickle</code></td><td>None needed</td></tr>
-  <tr><td>OpenAI</td><td><code>gpt-4o</code></td><td><code>sk-...</code></td></tr>
-  <tr><td>Anthropic</td><td><code>claude-3.5-sonnet</code></td><td><code>sk-ant-...</code></td></tr>
-  <tr><td>OpenRouter</td><td><code>openai/gpt-4o</code></td><td><code>sk-or-...</code></td></tr>
-  <tr><td>Google Gemini</td><td><code>gemini-pro</code></td><td><code>AIza...</code></td></tr>
-  <tr><td>DeepSeek</td><td><code>deepseek-chat</code></td><td><code>sk-...</code></td></tr>
-  <tr><td>Ollama (local)</td><td><code>custom</code></td><td>Not needed</td></tr>
-  <tr><td>Custom</td><td><code>custom</code></td><td>As configured</td></tr>
-</table>
+<h2 id="terminal">Integrated Terminal</h2>
+<p class="lead">Full terminal experience powered by xterm.js and node-pty. Toggle with <kbd>Ctrl+`</kbd>.</p>
 
 <h3>Features</h3>
 <ul>
-  <li>Edit code directly — ask the AI to modify your selection</li>
-  <li>Configurable system prompt, temperature, and max tokens</li>
-  <li>Tool-using mode (enabled by default) — the AI can read files, search, and run shell commands</li>
-  <li>Chat history persists between sessions</li>
+  <li><strong>Multiple tabs</strong> — each tab is an independent shell session</li>
+  <li><strong>Create / close tabs</strong> — plus/minus buttons in the terminal header, or <kbd>Ctrl+Shift+`</kbd> for a new tab</li>
+  <li><strong>Copy &amp; paste</strong> via terminal context menu or standard clipboard shortcuts</li>
+  <li><strong>256-color &amp; true color support</strong> for modern CLI tools</li>
+  <li><strong>Mouse events</strong> for programs like tmux, htop, nano</li>
+  <li><strong>Auto-scroll lock</strong> when you scroll up; auto-scroll resumes when at the bottom</li>
+  <li><strong>Resizable panel</strong> — drag the divider up/down</li>
+  <li><strong>Close on exit</strong> — tab closes automatically when the shell exits</li>
+  <li><strong>Persistent session</strong> — terminal survives file navigation and editor use</li>
 </ul>
 
-<!-- ================================================================== -->
-<h2 id="settings">Settings</h2>
-<p class="lead">Open with <code>Ctrl+,</code> or from the settings gear icon in the activity bar.</p>
-
+<h3>Shortcuts</h3>
 <table>
-  <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
-  <tr><td><code>fontSize</code></td><td>14</td><td>Editor font size in pixels</td></tr>
-  <tr><td><code>fontFamily</code></td><td>Cascadia Code, JetBrains Mono, Fira Code</td><td>Editor font family</td></tr>
-  <tr><td><code>tabSize</code></td><td>2</td><td>Tab width in spaces</td></tr>
-  <tr><td><code>wordWrap</code></td><td>off</td><td>Word wrapping: off, on, or wordWrapColumn</td></tr>
-  <tr><td><code>minimap</code></td><td>true</td><td>Show minimap</td></tr>
-  <tr><td><code>lineNumbers</code></td><td>on</td><td>Line number style: on, off, relative</td></tr>
-  <tr><td><code>autoSave</code></td><td>false</td><td>Auto-save dirty files after a delay</td></tr>
-  <tr><td><code>autoSaveDelay</code></td><td>1000</td><td>Delay in ms before auto-save</td></tr>
-  <tr><td><code>theme</code></td><td>vs-dark</td><td>Color theme: vs-dark, vs-light, hc-black</td></tr>
-  <tr><td><code>showHiddenFiles</code></td><td>false</td><td>Show dotfiles in the explorer</td></tr>
-  <tr><td><code>ai.provider</code></td><td>opencode</td><td>AI provider</td></tr>
-  <tr><td><code>ai.model</code></td><td>big-pickle</td><td>AI model</td></tr>
-  <tr><td><code>ai.temperature</code></td><td>0.7</td><td>AI randomness (0–2)</td></tr>
-  <tr><td><code>ai.maxTokens</code></td><td>4096</td><td>Max response length</td></tr>
-  <tr><td><code>ai.toolsEnabled</code></td><td>true</td><td>Allow AI to use tools</td></tr>
+  <tr><th>Shortcut</th><th>Action</th></tr>
+  <tr><td><kbd>Ctrl+`</kbd></td><td>Toggle terminal</td></tr>
+  <tr><td><kbd>Ctrl+Shift+`</kbd></td><td>New terminal tab</td></tr>
 </table>
 
-<!-- ================================================================== -->
-<h2 id="extension-marketplace">Extension Marketplace</h2>
-<p class="lead">Patch includes a built-in extension marketplace for browsing and installing plugins from curated and custom repositories.</p>
+<h2 id="git">Git Integration</h2>
+<p class="lead">Source control powered by <code>simple-git</code>, accessible from the Source Control sidebar tab.</p>
 
-<h3>Opening the Marketplace</h3>
-<p>Click the <strong>puzzle-piece icon</strong> in the activity bar to open the Extensions panel. The panel lists all available plugins from the default repository and any custom repos you've added.</p>
+<h3>File Status Indicators</h3>
+<p>Files in the explorer show status badges: <span class="badge added">A</span> added, <span class="badge modified">M</span> modified, <span class="badge deleted">D</span> deleted, <span class="badge renamed">R</span> renamed. The source control panel lists changes grouped by status.</p>
 
-<h3>Browsing &amp; Installing</h3>
+<h3>Actions</h3>
 <ul>
-  <li>Browse available plugins — each card shows the name, description, author, and version</li>
-  <li>Click any card to open a <strong>detail tab</strong> with the plugin's rendered README</li>
-  <li>Click <strong>Install</strong> from the detail tab or the list view to download and activate the plugin</li>
-  <li>Installed plugins show an <strong>enable/disable toggle</strong> and an <strong>Uninstall</strong> button in the detail tab</li>
+  <li><strong>Stage / Unstage</strong> — click the + / - buttons on individual files or stage all</li>
+  <li><strong>Commit</strong> — type a message and press the Commit button</li>
+  <li><strong>Push / Pull</strong> — sync with the remote repository</li>
+  <li><strong>Branch name</strong> — current branch displayed in the source control header</li>
+  <li><strong>View changed file contents</strong> — click a changed file to open it</li>
 </ul>
 
-<h3>Custom Repositories</h3>
-<p>You can add your own extension repositories by entering a <code>user/repo/branch</code> path in the <strong>Repositories</strong> section at the bottom of the extensions panel.</p>
+<div class="info">Git commands are available to plugins via the <code>patch.git</code> module.</div>
 
-<h4>Registry Structure</h4>
-<p>Each repository must contain a <code>registry.json</code> at the root and plugin files under <code>plugins/&lt;id&gt;/</code>:</p>
-<pre><code>registry.json
-plugins/
-  &lt;id&gt;/
-    manifest.json
-    index.js
-    README.md (optional)</code></pre>
+<h2 id="ai">AI Chat</h2>
+<p class="lead">Built-in AI assistant with multi-provider support. Toggle with <kbd>Ctrl+K I</kbd>.</p>
 
-<h4>registry.json format</h4>
-<pre><code>{
-  "id": "my-plugin",
-  "name": "My Plugin",
-  "version": "1.0.0",
-  "description": "Does something useful",
-  "author": "You",
-  "repo": "user/repo/branch"
-}</code></pre>
+<h3>Supported Providers</h3>
+<table>
+  <tr><th>Provider</th><th>Type</th><th>Models</th></tr>
+  <tr><td>OpenAI</td><td>Cloud</td><td>GPT-4o, GPT-4o-mini, o3-mini, GPT-4.1, GPT-4.1-mini, GPT-4.1-nano, o4-mini</td></tr>
+  <tr><td>Anthropic</td><td>Cloud</td><td>Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus</td></tr>
+  <tr><td>OpenRouter</td><td>Cloud (aggregator)</td><td>Any model from any provider</td></tr>
+  <tr><td>Ollama</td><td>Local</td><td>Any downloaded model (e.g. Llama 3, Mistral, CodeLlama)</td></tr>
+  <tr><td>LM Studio</td><td>Local</td><td>Any loaded model</td></tr>
+  <tr><td>Google Gemini</td><td>Cloud</td><td>Gemini 2.0 Flash, Gemini 2.5 Pro, Gemini 2.5 Flash</td></tr>
+  <tr><td>xAI</td><td>Cloud</td><td>Grok 3, Grok 3 mini, Grok 3 mini (fast)</td></tr>
+  <tr><td>Mistral</td><td>Cloud</td><td>Mistral Small 3.1, Mistral Large 2, Codestral 25.01, Ministral 3B</td></tr>
+  <tr><td>DeepSeek</td><td>Cloud</td><td>DeepSeek (V3), DeepSeek Reasoner (R1)</td></tr>
+  <tr><td>GitHub Models</td><td>Cloud</td><td>GPT-4o, Phi-4, DeepSeek R1, and more</td></tr>
+  <tr><td>Cloudflare Workers AI</td><td>Cloud</td><td>DeepSeek R1 (distill), Llama 3.3 70B, Qwen 2.5 Coder 32B, and more</td></tr>
+</table>
 
-<p>Custom repos are persisted to <code>~/.patch/marketplace-repos.json</code> and survive restarts.</p>
+<h3>Configuration</h3>
+<p>Set your API keys and default model in Settings (<kbd>Ctrl+,</kbd>) under the <strong>AI</strong> section. Each provider has its own key field and model selector.</p>
 
-<div class="tip"><strong>Tip:</strong> You can use the same repo that contains your own plugins as a marketplace registry — just add a <code>registry.json</code> pointing to them.</div>
+<h3>Tools</h3>
+<p>The AI assistant can use tools to interact with your workspace:</p>
+<table>
+  <tr><th>Tool</th><th>Description</th></tr>
+  <tr><td><code>readFile</code></td><td>Read a file from the current project</td></tr>
+  <tr><td><code>writeFile</code></td><td>Write or overwrite a file</td></tr>
+  <tr><td><code>editFile</code></td><td>Make targeted edits to an existing file</td></tr>
+  <tr><td><code>listFiles</code></td><td>List files in a directory</td></tr>
+  <tr><td><code>runCommand</code></td><td>Execute a shell command in the project root</td></tr>
+  <tr><td><code>searchCode</code></td><td>Search across project files using a query</td></tr>
+  <tr><td><code>fileSearch</code></td><td>Find files by name pattern</td></tr>
+  <tr><td><code>grepSearch</code></td><td>Search file contents with regex</td></tr>
+  <tr><td><code>gitLog</code></td><td>Show recent commit history</td></tr>
+  <tr><td><code>gitStatus</code></td><td>Show working tree status</td></tr>
+  <tr><td><code>gitDiff</code></td><td>Show uncommitted changes</td></tr>
+  <tr><td><code>listChatHistory</code></td><td>List previous chat sessions</td></tr>
+  <tr><td><code>getChatHistory</code></td><td>Load a specific chat session</td></tr>
+</table>
 
-<h4>Example repository with multiple plugins</h4>
-<pre><code>registry.json
-plugins/
-  cpu-monitor/
-    manifest.json
-    index.js
-    README.md
-  json-formatter/
-    manifest.json
-    index.js
-  color-picker/
-    manifest.json
-    index.js</code></pre>
+<h3>Chat History</h3>
+<p>All conversations are saved automatically and accessible via the chat history panel. You can view, load, and delete past sessions.</p>
 
-<p><code>registry.json</code> listing all three:</p>
-<pre><code>[
-  {
-    "id": "cpu-monitor",
-    "name": "CPU Monitor",
-    "version": "1.0.0",
-    "description": "Monitor CPU, GPU and memory usage",
-    "author": "You",
-    "repo": "user/repo/main"
-  },
-  {
-    "id": "json-formatter",
-    "name": "JSON Formatter",
-    "version": "1.0.0",
-    "description": "Format and validate JSON documents",
-    "author": "You",
-    "repo": "user/repo/main"
-  },
-  {
-    "id": "color-picker",
-    "name": "Color Picker",
-    "version": "1.0.0",
-    "description": "Pick colors and insert hex/rgb values",
-    "author": "You",
-    "repo": "user/repo/main"
+<h2 id="settings">Settings</h2>
+<p class="lead">Open with <kbd>Ctrl+,</kbd>. Settings persist in <code>~/.patch-settings.json</code>.</p>
+
+<h3>Editor</h3>
+<table>
+  <tr><th>Setting</th><th>Type</th><th>Default</th><th>Description</th></tr>
+  <tr><td>Font Size</td><td>number</td><td>14</td><td>Editor font size in pixels</td></tr>
+  <tr><td>Font Family</td><td>string</td><td><code>'Cascadia Code', 'Fira Code', monospace</code></td><td>Font stack for the editor</td></tr>
+  <tr><td>Line Height</td><td>number</td><td>1.6</td><td>Line height multiplier</td></tr>
+  <tr><td>Tab Size</td><td>number</td><td>2</td><td>Tab character width</td></tr>
+  <tr><td>Word Wrap</td><td>enum</td><td>off</td><td><code>off</code>, <code>on</code>, or <code>wordWrapColumn</code></td></tr>
+  <tr><td>Minimap</td><td>boolean</td><td>true</td><td>Show minimap</td></tr>
+  <tr><td>Bracket Pair Colorization</td><td>boolean</td><td>true</td><td>Colorize matching brackets</td></tr>
+  <tr><td>Auto Save</td><td>boolean</td><td>false</td><td>Automatically save files</td></tr>
+  <tr><td>Auto Save Delay</td><td>number</td><td>1000</td><td>Debounce delay in ms</td></tr>
+</table>
+
+<h3>UI</h3>
+<table>
+  <tr><th>Setting</th><th>Type</th><th>Default</th><th>Description</th></tr>
+  <tr><td>UI Theme</td><td>enum</td><td>dark</td><td><code>dark</code>, <code>light</code>, or <code>high-contrast</code></td></tr>
+  <tr><td>Editor Theme</td><td>enum</td><td>vs-dark</td><td>Monaco theme (<code>vs-dark</code>, <code>vs-light</code>, <code>hc-black</code>)</td></tr>
+  <tr><td>Accent Color</td><td>string</td><td>#007acc</td><td>UI accent color (picker or custom hex)</td></tr>
+</table>
+
+<h3>AI</h3>
+<table>
+  <tr><th>Setting</th><th>Type</th><th>Default</th><th>Description</th></tr>
+  <tr><td>Provider</td><td>enum</td><td>openai</td><td>AI provider selection</td></tr>
+  <tr><td>Model</td><td>string</td><td>gpt-4o</td><td>Model name for the selected provider</td></tr>
+  <tr><td>API Key</td><td>password</td><td>—</td><td>API key for the selected provider</td></tr>
+  <tr><td>Base URL</td><td>string</td><td>—</td><td>Custom endpoint (for OpenRouter, Ollama, LM Studio)</td></tr>
+  <tr><td>Max Tokens</td><td>number</td><td>8192</td><td>Maximum response tokens</td></tr>
+  <tr><td>Temperature</td><td>number</td><td>0.7</td><td>Sampling temperature (0–2)</td></tr>
+  <tr><td>System Prompt</td><td>textarea</td><td>—</td><td>Custom system prompt</td></tr>
+  <tr><td>Tool Calls</td><td>boolean</td><td>true</td><td>Allow AI to use workspace tools</td></tr>
+</table>
+
+<h3>Git</h3>
+<table>
+  <tr><th>Setting</th><th>Type</th><th>Default</th><th>Description</th></tr>
+  <tr><td>Auto Refresh</td><td>boolean</td><td>true</td><td>Auto-refresh git status</td></tr>
+  <tr><td>Refresh Interval</td><td>number</td><td>5000</td><td>Polling interval in ms</td></tr>
+</table>
+
+<h3>Terminal</h3>
+<table>
+  <tr><th>Setting</th><th>Type</th><th>Default</th><th>Description</th></tr>
+  <tr><td>Shell Path</td><td>string</td><td><code>process.env.SHELL</code></td><td>Terminal shell executable</td></tr>
+  <tr><td>Font Size</td><td>number</td><td>14</td><td>Terminal font size</td></tr>
+  <tr><td>Cursor Blink</td><td>boolean</td><td>true</td><td>Blinking cursor in terminal</td></tr>
+</table>
+
+<div class="info">Workspace folders can be added/removed from the settings panel. The settings file is at <code>~/.patch-settings.json</code> and is merged with defaults on load.</div>
+
+<h2 id="marketplace">Extension Marketplace</h2>
+<p class="lead">Browse, install, and manage plugins from built-in and custom repositories.</p>
+
+<h3>Built-in Registry</h3>
+<p>Patch ships with a default marketplace registry at <code>https://patch-marketplace.onrender.com/api/v1/plugins</code>. Plugins are listed with name, description, author, version, download count, and a screenshot.</p>
+
+<h3>Actions</h3>
+<ul>
+  <li><strong>Install</strong> — click the Install button on any plugin card</li>
+  <li><strong>Uninstall</strong> — remove a plugin from the Installed tab</li>
+  <li><strong>Toggle</strong> — enable/disable installed plugins without removing them</li>
+  <li><strong>Reload All</strong> — re-scan the <code>~/.patch/plugins</code> directory for local plugins</li>
+  <li><strong>Filter</strong> — search by plugin name across all available plugins</li>
+</ul>
+
+<h3>Plugin Metadata</h3>
+<p>Each plugin includes a <code>name</code>, <code>version</code>, <code>description</code>, <code>author</code>, and <code>main</code> entry point. These are displayed in the Installed tab for every installed plugin.</p>
+
+<h3>Custom Registries</h3>
+<p>You can add custom marketplace URLs in the settings. The marketplace will fetch from all configured registries and merge the results.</p>
+
+<h2 id="plugin-dev">Plugin Development</h2>
+<p class="lead">A Patch plugin is a folder with a <code>main.js</code> file that exports an <code>activate</code> function.</p>
+
+<h3>Quick Start</h3>
+<pre><code>// ~/.patch/plugins/my-plugin/main.js
+module.exports = {
+  activate: function(patch) {
+    console.log('Hello from my plugin!');
   }
-]</code></pre>
+};</code></pre>
 
-<!-- ================================================================== -->
-<h2 id="plugin-quickstart">Plugin API — Quick Start</h2>
-<p class="lead">Plugins extend Patch with custom sidebar panels, commands, shell integration, Monaco extensions, and event hooks.</p>
+<h4>Folder Structure</h4>
+<pre><code>~/.patch/plugins/my-plugin/
+  main.js
+  package.json   # optional, provides metadata</code></pre>
 
-<h3>User Script — <code>~/.patch/init.js</code></h3>
-<p>Runs automatically on startup. No manifest needed.</p>
-<pre><code>// ~/.patch/init.js
-patch.ui.addStatus('Hello from init.js');
-patch.commands.register('my-cmd', 'My Command', function() {
-  patch.editor.setContent('Hello from plugin!');
-});</code></pre>
-
-<h3>Shareable Plugin — <code>~/.patch/plugins/&lt;name&gt;/</code></h3>
-<p>Create a folder with <code>manifest.json</code> and <code>index.js</code>:</p>
-
-<pre><code>// manifest.json
-{
-  "id": "my-plugin",
-  "name": "My Plugin",
-  "version": "1.0.0",
-  "description": "Does something cool"
-}
-
-// index.js
-function activate(patch) {
-  patch.ui.addStatus('Plugin loaded!');
-}</code></pre>
-
-<p>Open the <strong>Plugins panel</strong> (<code>Ctrl+Shift+J</code>) to toggle or reload. Commands appear in the palette. Sidebar views get activity bar buttons.</p>
-
-<!-- ================================================================== -->
-<h2 id="patch-editor">patch.editor</h2>
-<p>Control the active editor — read/write content, manage tabs, access Monaco directly.</p>
-
-<table>
-  <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
-  <tr><td><code>getActiveTab()</code></td><td><code>OpenTab | null</code></td><td>Currently visible tab</td></tr>
-  <tr><td><code>getContent()</code></td><td><code>string</code></td><td>Full text of the active editor</td></tr>
-  <tr><td><code>setContent(text)</code></td><td><code>void</code></td><td>Replace editor content</td></tr>
-  <tr><td><code>getSelection()</code></td><td><code>Selection | null</code></td><td>Monaco selection range</td></tr>
-  <tr><td><code>getMonacoEditor()</code></td><td><code>editor | null</code></td><td>Raw Monaco instance</td></tr>
-  <tr><td><code>createOutputTab(name, content, language?)</code></td><td><code>void</code></td><td>Virtual read-only tab (<code>output://</code> path)</td></tr>
-</table>
-
-<pre><code>var ed = patch.editor.getMonacoEditor();
-if (ed) {
-  var sel = ed.getSelection();
-  ed.executeEdits('plugin', [{ range: sel, text: 'Hello!' }]);
-  ed.focus();
-}
-
-patch.editor.createOutputTab('Build Log', 'Success\n0 errors');</code></pre>
-
-<!-- ================================================================== -->
-<h2 id="patch-ui">patch.ui</h2>
-
-<table>
-  <tr><th>Method</th><th>Description</th></tr>
-  <tr><td><code>addStatus(text)</code></td><td>Show status bar message (auto-clears after 3s)</td></tr>
-  <tr><td><code>registerSidebarView(id, label, icon, render)</code></td><td>Register a sidebar panel with activity bar button</td></tr>
-</table>
-
-<p><code>registerSidebarView</code> parameters:</p>
-<table>
-  <tr><th>Param</th><th>Description</th></tr>
-  <tr><td><code>id</code></td><td>Unique view identifier</td></tr>
-  <tr><td><code>label</code></td><td>Tooltip &amp; header text</td></tr>
-  <tr><td><code>icon</code></td><td>Raw SVG (18×18 viewBox, use <code>currentColor</code>)</td></tr>
-  <tr><td><code>render</code></td><td><code>() => string</code> — returns HTML rendered in the sidebar</td></tr>
-</table>
-
-<pre><code>var data = {};
-patch.ui.registerSidebarView('my-view', 'My Panel',
-  '&lt;svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor"&gt;' +
-  '&lt;circle cx="8" cy="8" r="6"/&gt;&lt;/svg&gt;',
-  function() { return '&lt;h3&gt;Data&lt;/h3&gt;&lt;p&gt;' + data.value + '&lt;/p&gt;'; }
-);</code></pre>
-
-<!-- ================================================================== -->
-<h2 id="patch-commands">patch.commands</h2>
-
-<table>
-  <tr><th>Method</th><th>Description</th></tr>
-  <tr><td><code>register(id, label, action, shortcut?)</code></td><td>Register a command in the palette. Duplicate IDs ignored.</td></tr>
-</table>
-
-<pre><code>patch.commands.register('hello', 'Say Hello', function() {
-  patch.ui.addStatus('Hello!');
-});</code></pre>
-
-<!-- ================================================================== -->
-<h2 id="patch-exec">patch.exec</h2>
-
-<table>
-  <tr><th>Signature</th><th>Returns</th></tr>
-  <tr><td><code>patch.exec(command)</code></td><td><code>Promise&lt;string&gt;</code> — stdout</td></tr>
-</table>
-<p>Runs a shell command in the main process via <code>child_process.exec</code>.</p>
-<pre><code>patch.exec('df -h / | tail -1').then(function(out) {
-  patch.ui.addStatus('Disk: ' + out.trim());
-});</code></pre>
-
-<!-- ================================================================== -->
-<h2 id="patch-fs">patch.fs</h2>
-
-<table>
-  <tr><th>Method</th><th>Returns</th></tr>
-  <tr><td><code>readFile(path)</code></td><td><code>Promise&lt;string&gt;</code></td></tr>
-  <tr><td><code>writeFile(path, content)</code></td><td><code>Promise&lt;boolean&gt;</code></td></tr>
-  <tr><td><code>getFileTree(dirPath, showHidden?)</code></td><td><code>Promise&lt;FileNode[]&gt;</code></td></tr>
-</table>
-
-<pre><code>patch.fs.writeFile('/home/user/.patch/data.json', JSON.stringify({a:1}));
-patch.fs.readFile('/home/user/.patch/data.json').then(JSON.parse);</code></pre>
-
-<!-- ================================================================== -->
-<h2 id="patch-git">patch.git</h2>
-
-<table>
-  <tr><th>Method</th><th>Returns</th></tr>
-  <tr><td><code>status(dir)</code></td><td><code>Promise&lt;GitFile[]&gt;</code> — <code>{ path, status }</code> where status is M/A/D/R/??</td></tr>
-  <tr><td><code>branch(dir)</code></td><td><code>Promise&lt;string | null&gt;</code></td></tr>
-</table>
-
-<pre><code>patch.git.status(patch.internal.rootPath).then(function(files) {
-  patch.ui.addStatus(files.length + ' changed');
-});</code></pre>
-
-<!-- ================================================================== -->
-<h2 id="patch-monaco">patch.monaco</h2>
-<p>Raw Monaco global. Register languages, themes, providers, actions, keybindings.</p>
-
-<pre><code>patch.monaco.languages.registerHoverProvider('javascript', {
-  provideHover: function(model, position) {
-    return { contents: [{ value: '**Plugin hover!**' }] };
-  }
-});</code></pre>
-
-<!-- ================================================================== -->
-<h2 id="patch-events">patch.on / patch.off</h2>
-
-<table>
-  <tr><th>Event</th><th>Arguments</th><th>Fires</th></tr>
-  <tr><td><code>'file:open'</code></td><td><code>(path, fileInfo)</code></td><td>When a file is opened</td></tr>
-  <tr><td><code>'file:save'</code></td><td><code>(path, content)</code></td><td>When a file is saved</td></tr>
-</table>
-
-<pre><code>patch.on('file:save', function(path) {
-  patch.ui.addStatus('Saved: ' + path.split('/').pop());
-});</code></pre>
-
-<!-- ================================================================== -->
-<h2 id="patch-internal">patch.internal</h2>
-
-<table>
-  <tr><th>Property</th><th>Type</th><th>Description</th></tr>
-  <tr><td><code>rootPath</code></td><td><code>string | null</code></td><td>Opened folder</td></tr>
-  <tr><td><code>fileTree</code></td><td><code>FileNode[]</code></td><td>Project file tree</td></tr>
-  <tr><td><code>tabs</code></td><td><code>OpenTab[]</code></td><td>All open tabs</td></tr>
-  <tr><td><code>activeTabPath</code></td><td><code>string | null</code></td><td>Active tab path</td></tr>
-  <tr><td><code>editorRef</code></td><td><code>React.RefObject</code></td><td>Monaco editor ref</td></tr>
-</table>
-
-<pre><code>var root = patch.internal.rootPath;
-patch.ui.addStatus('Working in: ' + (root ? root.split('/').pop() : 'none'));</code></pre>
-
-<!-- ================================================================== -->
-<h2 id="plugin-lifecycle">Plugin Lifecycle</h2>
+<h4>Lifecycle</h4>
 <ol>
-  <li><strong>Scan</strong> — Reads <code>~/.patch/init.js</code> and scans <code>~/.patch/plugins/</code> for manifest.json</li>
-  <li><strong>API creation</strong> — Fresh <code>patch</code> object with empty command/view registries</li>
-  <li><strong>Execution</strong> — <code>init.js</code> runs raw. Plugin <code>index.js</code>: <code>export</code> stripped, <code>activate(patch)</code> called</li>
-  <li><strong>Reload</strong> — Clears all state, re-scans, re-executes. Old API references become stale.</li>
+  <li>Place your plugin folder in <code>~/.patch/plugins/</code></li>
+  <li>Click <strong>Reload All</strong> in the Plugins panel, or restart Patch</li>
+  <li>If <code>activate</code> throws, the plugin is marked as errored and skipped</li>
 </ol>
 
-<div class="tip"><strong>Tip:</strong> Persist data with <code>patch.fs.writeFile()</code>. Closure variables reset on reload.</div>
-
-<!-- ================================================================== -->
-<h2 id="plugin-examples">Examples</h2>
-
-<h3>GPU Monitor</h3>
-<pre><code>function activate(patch) {
-  var data = { gpu: '', mem: '', cpu: '' };
-
-  function fetch() {
-    patch.exec('lspci 2>/dev/null | grep -i "vga\\|3d\\|display" | ' +
-      'head -1 | sed \'s/.*: //;s/ (rev.*//\' || echo unknown')
-      .then(function(gpu) { data.gpu = gpu; return patch.exec('free -m | awk \'/Mem:/ {print $3"/"$2" MB"}\''); })
-      .then(function(mem) { data.mem = mem; return patch.exec('top -bn1 | head -3'); })
-      .then(function(cpu) { data.cpu = cpu; });
-  }
-
-  function render() {
-    var cpuLine = data.cpu.split('\n').find(function(l) { return l.indexOf('%Cpu') >= 0; });
-    return '&lt;h3&gt;GPU Monitor&lt;/h3&gt;&lt;table&gt;'
-      + '&lt;tr&gt;&lt;th&gt;GPU&lt;/th&gt;&lt;td&gt;' + data.gpu.trim() + '&lt;/td&gt;&lt;/tr&gt;'
-      + '&lt;tr&gt;&lt;th&gt;Memory&lt;/th&gt;&lt;td&gt;' + data.mem.trim() + '&lt;/td&gt;&lt;/tr&gt;'
-      + '&lt;tr&gt;&lt;th&gt;CPU&lt;/th&gt;&lt;td&gt;' + (cpuLine ? cpuLine.trim() : 'N/A') + '&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;';
-  }
-
-  patch.ui.registerSidebarView('gpu', 'GPU Monitor',
-    '&lt;svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"&gt;' +
-    '&lt;rect x="2" y="7" width="20" height="10" rx="2"/&gt;&lt;circle cx="12" cy="12" r="2"/&gt;' +
-    '&lt;path d="M16 12h4M4 12h4"/&gt;&lt;/svg&gt;', render);
-
-  patch.commands.register('show-gpu', 'Show GPU Usage', function() {
-    fetch();
-    setInterval(fetch, 3000);
-    patch.ui.addStatus('GPU monitor started');
-  });
+<h4>package.json (optional)</h4>
+<pre><code>{
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "description": "Does something cool",
+  "author": "You",
+  "main": "main.js"
 }</code></pre>
 
-<h3>JSON Formatter</h3>
-<pre><code>function activate(patch) {
-  patch.commands.register('format-json', 'Format JSON', function() {
-    try {
-      var formatted = JSON.stringify(JSON.parse(patch.editor.getContent()), null, 2);
-      patch.editor.setContent(formatted);
-      patch.ui.addStatus('Formatted');
-    } catch (e) { patch.ui.addStatus('Invalid JSON'); }
-  });
-}</code></pre>
+<h3 id="patch-api">Plugin API Reference</h3>
 
-<!-- ================================================================== -->
-<h2 id="plugin-tips">Tips &amp; Ideas</h2>
+<h4 id="patch.editor"><code>patch.editor</code></h4>
+<p>Read and manipulate the active text editor.</p>
+<table>
+  <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
+  <tr><td><code>getValue()</code></td><td><code>string</code></td><td>Get the full text of the active editor</td></tr>
+  <tr><td><code>setValue(text)</code></td><td><code>void</code></td><td>Replace the entire editor content</td></tr>
+  <tr><td><code>getSelection()</code></td><td><code>string</code></td><td>Get the currently selected text</td></tr>
+  <tr><td><code>getFilePath()</code></td><td><code>string|null</code></td><td>Get the file path of the active tab</td></tr>
+  <tr><td><code>getLanguage()</code></td><td><code>string</code></td><td>Get the language ID (e.g. <code>javascript</code>)</td></tr>
+  <tr><td><code>setDecorations(key, decorations)</code></td><td><code>void</code></td><td>Set editor decorations (highlights, glyphs)</td></tr>
+  <tr><td><code>getMonacoEditor()</code></td><td><code>editor.ICodeEditor</code></td><td>Access the raw Monaco editor instance</td></tr>
+</table>
+<pre><code>patch.editor.setValue(patch.editor.getValue().toUpperCase());</code></pre>
+<p>Use <code>setDecorations</code> to add line highlights or gutter icons. Call <code>setDecorations('my-deco', [])</code> to clear.</p>
 
-<div class="feature-grid">
-  <div class="feature-card"><h4>Keep render() fast</h4><p>Called on every sidebar re-render. Do I/O in intervals/commands, store results in closure vars.</p></div>
-  <div class="feature-card"><h4>Graceful shell</h4><p>Use <code>2>/dev/null || echo fallback</code> to avoid unhandled rejections.</p></div>
-  <div class="feature-card"><h4>No require()</h4><p>Plugins run in a sandbox. Use <code>patch.exec()</code> for CLI tools instead.</p></div>
-  <div class="feature-card"><h4>Unique IDs</h4><p>Command and view IDs are deduplicated. Second registration is silently ignored.</p></div>
-  <div class="feature-card"><h4>SVG icons</h4><p>18×18 viewBox. Use <code>currentColor</code> for theme-aware icons.</p></div>
-  <div class="feature-card"><h4>Persist state</h4><p>State resets on reload. Use <code>patch.fs.writeFile()</code> to save data to disk.</p></div>
-</div>
+<h4 id="patch.ui"><code>patch.ui</code></h4>
+<p>Register custom sidebar panels and display user notifications.</p>
+<table>
+  <tr><th>Method</th><th>Description</th></tr>
+  <tr><td><code>registerSidebarView(id, label, icon, renderFn)</code></td><td>Add a custom sidebar view. <code>renderFn(container)</code> receives a DOM element to populate</td></tr>
+  <tr><td><code>showNotification(message, type?)</code></td><td>Show a notification toast. Type: <code>'info'</code> (default), <code>'error'</code>, <code>'warning'</code>, <code>'success'</code></td></tr>
+  <tr><td><code>showDialog(options)</code></td><td>Show a dialog with <code>{ title, message, buttons: [{ label, value, primary? }] }</code>. Returns the clicked button value.</td></tr>
+</table>
+<pre><code>patch.ui.registerSidebarView('my-view', 'My Panel', 'star', function(container) {
+  container.innerHTML = '&lt;h3&gt;Hello from plugin!&lt;/h3&gt;';
+});
 
-<h3>Plugin Ideas</h3>
+patch.ui.showNotification('File saved!', 'success');
+
+var result = await patch.ui.showDialog({
+  title: 'Confirm',
+  message: 'Are you sure?',
+  buttons: [
+    { label: 'Yes', value: 'yes', primary: true },
+    { label: 'No', value: 'no' }
+  ]
+});</code></pre>
+
+<h4 id="patch.commands"><code>patch.commands</code></h4>
+<p>Register new commands and execute existing ones. Prefix with your plugin name to avoid collisions.</p>
+<table>
+  <tr><th>Method</th><th>Description</th></tr>
+  <tr><td><code>register(id, handler)</code></td><td>Register a command. <code>handler</code> receives args from the command palette or other callers</td></tr>
+  <tr><td><code>execute(id, args?)</code></td><td>Execute a command by ID (built-in or registered by any plugin)</td></tr>
+  <tr><td><code>remove(id)</code></td><td>Unregister a previously registered command</td></tr>
+</table>
+<pre><code>patch.commands.register('my-plugin.hello', function() {
+  patch.ui.showNotification('Hello from my-plugin!');
+});</code></pre>
+
+<h4 id="patch.exec"><code>patch.exec</code></h4>
+<p>Run shell commands in the project root directory.</p>
+<table>
+  <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
+  <tr><td><code>exec(command)</code></td><td><code>Promise&lt;{ stdout, stderr, code }&gt;</code></td><td>Run a shell command. Working directory is the project root.</td></tr>
+  <tr><td><code>spawn(command, args)</code></td><td><code>ChildProcess</code></td><td>Spawn a long-running process with stdio pipes.</td></tr>
+</table>
+<pre><code>patch.exec.exec('npm test').then(function(result) {
+  patch.ui.showNotification(result.code === 0 ? 'Tests passed!' : 'Tests failed',
+    result.code === 0 ? 'success' : 'error');
+});</code></pre>
+<div class="info"><code>exec</code> captures output into memory. For streaming or long-running processes, use <code>spawn</code> instead.</div>
+
+<h4 id="patch.fs"><code>patch.fs</code></h4>
+<p>Read and write files relative to the project root.</p>
+<table>
+  <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
+  <tr><td><code>readFile(relativePath)</code></td><td><code>Promise&lt;string&gt;</code></td><td>Read a file as UTF-8 text</td></tr>
+  <tr><td><code>writeFile(relativePath, content)</code></td><td><code>Promise&lt;void&gt;</code></td><td>Write text to a file (creates directories if needed)</td></tr>
+  <tr><td><code>deleteFile(relativePath)</code></td><td><code>Promise&lt;void&gt;</code></td><td>Delete a file</td></tr>
+  <tr><td><code>listDir(relativePath)</code></td><td><code>Promise&lt;string[]&gt;</code></td><td>List directory entries (names only)</td></tr>
+  <tr><td><code>exists(relativePath)</code></td><td><code>Promise&lt;boolean&gt;</code></td><td>Check if a file or directory exists</td></tr>
+  <tr><td><code>getProjectPath()</code></td><td><code>string</code></td><td>Get the absolute project root path</td></tr>
+</table>
+<pre><code>patch.fs.readFile('package.json').then(function(content) {
+  var pkg = JSON.parse(content);
+  patch.ui.showNotification('Project: ' + pkg.name);
+});</code></pre>
+
+<h4 id="patch.git"><code>patch.git</code></h4>
+<p>Interact with git from within a plugin.</p>
+<table>
+  <tr><th>Method</th><th>Returns</th><th>Description</th></tr>
+  <tr><td><code>status()</code></td><td><code>Promise&lt;object&gt;</code></td><td>Get git status (staged, unstaged, conflicted files)</td></tr>
+  <tr><td><code>log(count?)</code></td><td><code>Promise&lt;object[]&gt;</code></td><td>Get recent commit log entries</td></tr>
+  <tr><td><code>diff()</code></td><td><code>Promise&lt;object&gt;</code></td><td>Get the working tree diff</td></tr>
+  <tr><td><code>add(files)</code></td><td><code>Promise&lt;void&gt;</code></td><td>Stage files (string or array of paths)</td></tr>
+  <tr><td><code>commit(message)</code></td><td><code>Promise&lt;void&gt;</code></td><td>Commit staged changes</td></tr>
+  <tr><td><code>push()</code></td><td><code>Promise&lt;void&gt;</code></td><td>Push to remote</td></tr>
+  <tr><td><code>pull()</code></td><td><code>Promise&lt;void&gt;</code></td><td>Pull from remote</td></tr>
+  <tr><td><code>getBranch()</code></td><td><code>Promise&lt;string&gt;</code></td><td>Get current branch name</td></tr>
+</table>
+<pre><code>patch.git.status().then(function(s) {
+  patch.ui.showNotification(s.files.length + ' changed file(s)');
+});</code></pre>
+
+<h4 id="patch.monaco"><code>patch.monaco</code></h4>
+<p>Access Monaco API types for use in plugins. Provides <code>Range</code>, <code>Position</code>, <code>Selection</code>, and other Monaco constructors.</p>
+<pre><code>var range = new patch.monaco.Range(1, 1, 1, 10);
+var pos = new patch.monaco.Position(5, 1);</code></pre>
+
+<h4 id="patch.events"><code>patch.on</code> / <code>patch.off</code></h4>
+<p>Subscribe to editor events.</p>
+<table>
+  <tr><th>Method</th><th>Description</th></tr>
+  <tr><td><code>patch.on(event, handler)</code></td><td>Subscribe to an event. Supported events: <code>editor.change</code>, <code>editor.save</code>, <code>tab.open</code>, <code>tab.close</code></td></tr>
+  <tr><td><code>patch.off(event, handler)</code></td><td>Unsubscribe from an event</td></tr>
+</table>
+<pre><code>function onChange(e) {
+  console.log('Editor changed:', e);
+}
+patch.on('editor.change', onChange);
+// later: patch.off('editor.change', onChange);</code></pre>
+
+<h4 id="patch.internal"><code>patch.internal</code></h4>
+<p>Access internal IPC channels for low-level integration. For advanced use only.</p>
+<table>
+  <tr><th>Method</th><th>Description</th></tr>
+  <tr><td><code>send(channel, data)</code></td><td>Send an IPC message to the main process</td></tr>
+  <tr><td><code>on(channel, handler)</code></td><td>Listen for IPC messages from the main process</td></tr>
+</table>
+
+<h2 id="plugin-lifecycle">Plugin Lifecycle</h2>
+<p class="lead">A plugin goes through four stages: discovered, loaded, activated, and optionally deactivated.</p>
+
+<h3>Discovery</h3>
+<p>On startup (or "Reload All"), Patch scans <code>~/.patch/plugins/*/</code> for plugin folders. Each folder must contain a <code>main.js</code> (or the file specified in <code>package.json</code>). Invalid folders are skipped with an error logged to the console.</p>
+
+<h3>Loading</h3>
+<p>Each plugin's <code>main.js</code> is <code>require()</code>'d. If the module throws during load, the plugin is marked as <strong>errored</strong> and is not activated. The error message is shown in the Plugins panel.</p>
+
+<h3>Activation</h3>
+<p>If the module exports an <code>activate</code> function, it is called with the <code>patch</code> API object. The function may return a deactivation function:</p>
+<pre><code>module.exports = {
+  activate: function(patch) {
+    var timer = setInterval(function() {
+      console.log('tick');
+    }, 1000);
+    return function() {
+      clearInterval(timer);
+    };
+  }
+};</code></pre>
+
+<h3>Deactivation</h3>
+<p>When a plugin is toggled off or Patch shuts down, the optional deactivation function returned by <code>activate</code> is called. Commands registered via <code>patch.commands</code> are automatically unregistered. Sidebar views are automatically removed.</p>
+
+<h3>Error State</h3>
+<p>If <code>activate</code> throws, the plugin is marked <strong>errored</strong>. Errors are displayed in the Plugins panel. Fix the issue in the plugin folder and click "Reload All" to re-activate.</p>
+
+<h2 id="examples">Examples</h2>
+<p class="lead">Ready-to-use plugin examples to learn from.</p>
+
+<h3>Status Bar Word Counter</h3>
+<pre><code>// ~/.patch/plugins/word-count/main.js
+module.exports = {
+  activate: function(patch) {
+    function update() {
+      var text = patch.editor.getValue();
+      var words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      patch.ui.showNotification('Words: ' + words);
+    }
+    patch.commands.register('word-count.show', update);
+  }
+};</code></pre>
+
+<h3>Auto-backup on Save</h3>
+<pre><code>module.exports = {
+  activate: function(patch) {
+    patch.on('editor.save', function() {
+      var content = patch.editor.getValue();
+      var path = patch.editor.getFilePath();
+      var backupPath = path + '.backup';
+      patch.fs.writeFile(backupPath, content);
+    });
+  }
+};</code></pre>
+
+<h3>Git Status Checker</h3>
+<pre><code>module.exports = {
+  activate: function(patch) {
+    setInterval(function() {
+      patch.git.status().then(function(s) {
+        if (s.files.length > 0) {
+          patch.ui.showNotification(s.files.length + ' changed files', 'warning');
+        }
+      });
+    }, 30000);
+  }
+};</code></pre>
+
+<h3>Minimal Sidebar Panel</h3>
+<pre><code>module.exports = {
+  activate: function(patch) {
+    patch.ui.registerSidebarView('todo-list', 'Todo', 'check', function(el) {
+      el.innerHTML = '&lt;ul&gt;&lt;li&gt;Write plugin&lt;/li&gt;&lt;li&gt;Profit&lt;/li&gt;&lt;/ul&gt;';
+    });
+  }
+};</code></pre>
+
+<h2 id="tips">Tips &amp; Ideas</h2>
+<p class="lead">Ideas for plugins you can build with the Patch API.</p>
+
 <ul>
-  <li><strong>Syntax checker</strong> — run eslint/ruff via <code>patch.exec()</code></li>
-  <li><strong>Color picker</strong> — sidebar view with HTML color input</li>
-  <li><strong>Live Markdown preview</strong> — render markdown in a sidebar</li>
-  <li><strong>Todo highlighter</strong> — scan for TODO/FIXME comments</li>
-  <li><strong>Git blame</strong> — annotations via <code>git blame</code></li>
-  <li><strong>Bookmarks</strong> — save/restore cursor positions</li>
-  <li><strong>AI prompt templates</strong> — inject custom prompts into the chat</li>
-  <li><strong>Project notes</strong> — save markdown notes per folder</li>
-  <li><strong>Keybinding layer</strong> — custom shortcuts via Monaco API</li>
-  <li><strong>Bulk renamer</strong> — regex rename files in the project</li>
+  <li><strong>Project Dashboard</strong> — Use <code>patch.fs</code> and <code>patch.ui.registerSidebarView</code> to show build status, test results, or TODO counts.</li>
+  <li><strong>Snippet Expander</strong> — Listen to <code>editor.change</code>, detect shortcuts like <code>:log</code> and expand them to <code>console.log()</code>.</li>
+  <li><strong>Format-on-save</strong> — Hook into <code>editor.save</code>, run <code>patch.exec.exec('prettier --write ' + path)</code>.</li>
+  <li><strong>Color Preview</strong> — Use <code>patch.editor.setDecorations</code> to highlight color hex values with their actual color as a background.</li>
+  <li><strong>Task Runner</strong> — Register commands for <code>npm run build</code>, <code>npm test</code>, etc. Show output via notifications.</li>
+  <li><strong>Inline Translator</strong> — Select text, execute a command that calls an external API and replaces the selection with translated text.</li>
+  <li><strong>Git Blame Annotations</strong> — Use <code>patch.git.log()</code> and decorations to show the last commit info for each line in the gutter.</li>
+  <li><strong>Custom Theme Switcher</strong> — Register a command that cycles through multiple accent colors or editor themes.</li>
+  <li><strong>Bookmark Manager</strong> — Save line positions with labels and jump between them via the command palette.</li>
+  <li><strong>Live Markdown Preview</strong> — Register a sidebar view that renders the current markdown file as HTML in real-time.</li>
+  <li><strong>Pair Programming</strong> — Use <code>patch.internal</code> IPC to sync editor content with a remote peer.</li>
 </ul>
 
 <div class="footer">
   <a href="https://github.com/Momwhyareyouhere/Patch" style="color:var(--accent);text-decoration:none">Patch</a> &mdash; Built by Momwhyareyouhere
 </div>
-
 </div>
+
+<script>
+(function() {
+  var btn = document.getElementById('themeBtn');
+  if (localStorage.getItem('docs-theme') === 'light') document.body.classList.add('light');
+  btn.onclick = function() {
+    document.body.classList.toggle('light');
+    localStorage.setItem('docs-theme', document.body.classList.contains('light') ? 'light' : 'dark');
+  };
+})();
+</script>
 </body>
 </html>

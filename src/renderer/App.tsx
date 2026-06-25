@@ -24,6 +24,7 @@ export default function App() {
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [activeTabPath, setActiveTabPath] = useState<string | null>(null);
+  const [diffCompare, setDiffCompare] = useState<string | null>(null);
   const [statusText, setStatusText] = useState('Ready');
   const [settings, setSettings] = useState<EditorSettings>(DEFAULT_SETTINGS);
   const [sidebarView, setSidebarView] = useState<SidebarView>('explorer');
@@ -70,10 +71,12 @@ export default function App() {
   
   useEffect(() => {
     window.api.settings.load().then(async (s) => {
-      setSettings(s);
-      setShowHidden(s.showHiddenFiles);
-      if (s.recentFolders && s.recentFolders.length > 0) {
-        const last = s.recentFolders[0];
+      const merged = { ...DEFAULT_SETTINGS, ...s, ai: { ...DEFAULT_SETTINGS.ai, ...(s.ai || {}) } };
+      setSettings(merged);
+      setShowHidden(merged.showHiddenFiles);
+      const folders = s.workspaceFolders && s.workspaceFolders.length > 0 ? s.workspaceFolders : s.recentFolders;
+      if (folders.length > 0) {
+        const last = folders[0];
         setRootPath(last);
         const tree = await window.api.fs.getFileTree(last, s.showHiddenFiles);
         setFileTree(tree);
@@ -95,6 +98,13 @@ export default function App() {
     const name = activeTab ? activeTab.name : (rootPath ? rootPath.split('/').pop() || 'Patch' : 'Patch');
     window.api.app.setTitle(name + ' - Patch');
   }, [activeTab, rootPath]);
+
+  useEffect(() => {
+    document.documentElement.classList.remove('theme-dark', 'theme-light', 'theme-hc');
+    document.documentElement.classList.add('theme-' + settings.uiTheme);
+    document.documentElement.style.setProperty('--accent', settings.accentColor);
+    document.documentElement.style.setProperty('--status-bar-bg', settings.accentColor);
+  }, [settings.uiTheme, settings.accentColor]);
 
   useEffect(() => {
     if (rootPath) window.api.fs.watchFolder(rootPath);
@@ -159,7 +169,8 @@ export default function App() {
     setActiveTabPath(null);
     setSettings((s) => {
       const recent = [path, ...s.recentFolders.filter((f) => f !== path)].slice(0, 10);
-      return { ...s, recentFolders: recent };
+      const workspace = s.workspaceFolders.includes(path) ? s.workspaceFolders : [path, ...s.workspaceFolders.filter((f) => f !== path)].slice(0, 10);
+      return { ...s, recentFolders: recent, workspaceFolders: workspace };
     });
     addStatus(`Opened folder: ${path}`);
   }, [addStatus, showHidden]);
@@ -189,6 +200,41 @@ export default function App() {
     pluginHostRef.current?.emit('file:open', filePath, info);
     addStatus(`Opened: ${info.name}`);
   }, [tabs, addStatus]);
+
+  const openDiff = useCallback(async (originalPath: string, modifiedPath: string, title?: string) => {
+    const diffPath = 'diff://' + originalPath + '|<|' + modifiedPath;
+    const existing = tabs.find((t) => t.path === diffPath);
+    if (existing) { setActiveTabPath(diffPath); return; }
+    const [origInfo, modInfo] = await Promise.all([
+      window.api.fs.readFile(originalPath),
+      modifiedPath.startsWith('output://') ? { content: modifiedPath.replace('output://', ''), language: 'plaintext' } : window.api.fs.readFile(modifiedPath),
+    ]);
+    const name = title || (origInfo.name.split('/').pop() || 'file') + ' ↔ ' + (modInfo.name.split('/').pop() || 'file');
+    const diffTab: OpenTab = {
+      path: diffPath,
+      name,
+      language: 'diff',
+      content: JSON.stringify({ original: origInfo.content, modified: modInfo.content, language: origInfo.language }),
+      savedContent: JSON.stringify({ original: origInfo.content, modified: modInfo.content, language: origInfo.language }),
+      isDirty: false,
+    };
+    setTabs((prev) => [...prev, diffTab]);
+    setActiveTabPath(diffPath);
+    addStatus(`Diff: ${name}`);
+  }, [tabs, addStatus]);
+
+  const addWorkspaceFolder = useCallback(async () => {
+    const path = await window.api.dialog.openFolder();
+    if (path && rootPath) {
+      setSettings((s) => {
+        const ws = s.workspaceFolders.includes(path) ? s.workspaceFolders : [...s.workspaceFolders, path];
+        return { ...s, workspaceFolders: ws };
+      });
+      addStatus(`Added folder to workspace: ${path.split('/').pop()}`);
+    } else if (path && !rootPath) {
+      loadFolder(path);
+    }
+  }, [rootPath, loadFolder, addStatus]);
 
   const closeTab = useCallback(async (filePath: string, saveFirst?: boolean) => {
     const tab = tabs.find((t) => t.path === filePath);
@@ -568,7 +614,12 @@ export default function App() {
     { id: 'toggle-minimap', label: 'Toggle Minimap', action: () => {
       setSettings((s) => ({ ...s, minimap: !s.minimap }));
     }},
+    { id: 'add-workspace-folder', label: 'Add Folder to Workspace', action: addWorkspaceFolder },
+    { id: 'clear-compare', label: 'Clear Compare Reference', action: () => { setDiffCompare(null); addStatus('Compare reference cleared'); }},
   ];
+
+  const workspaceFolders: string[] = settings.workspaceFolders || [];
+  const allRootFolders = rootPath ? [rootPath, ...workspaceFolders.filter((f) => f !== rootPath)] : [];
 
   if (!rootPath) {
     return (
@@ -747,6 +798,9 @@ export default function App() {
               onDelete={deleteEntry} onRename={renameEntry}
               onMoveFile={moveFile} onRefresh={refreshTree}
               activeFilePath={activeTabPath} gitFiles={gitFiles}
+              workspaceFolders={allRootFolders} onSwitchRoot={loadFolder}
+              onOpenDiff={openDiff} diffCompare={diffCompare}
+              onSetDiffCompare={setDiffCompare}
             />
           ) : sidebarView === 'outline' ? (
             <OutlinePanel tab={activeTab} onGoToLine={goToLine} />
@@ -794,12 +848,14 @@ export default function App() {
           ) : (() => {
             const pluginView = pluginViews.find((v) => v.id === sidebarView);
             if (pluginView) {
+              let html: string;
+              try { html = pluginView.render(); } catch (e) { html = '<div style="padding:12px;color:#f85149;font-size:13px">Plugin error: ' + (e instanceof Error ? e.message : String(e)) + '</div>'; }
               return (
                 <div className="plugin-sidebar-view" key={pluginView.id}>
                   <div className="sidebar-header">
                     <span>{pluginView.label}</span>
                   </div>
-                  <div className="plugin-sidebar-content" dangerouslySetInnerHTML={{ __html: pluginView.render() }} />
+                  <div className="plugin-sidebar-content" dangerouslySetInnerHTML={{ __html: html }} />
                 </div>
               );
             }
@@ -882,6 +938,7 @@ export default function App() {
         statusText={statusText} tab={activeTab} rootPath={rootPath}
         line={editorLine} column={editorColumn} settings={settings} gitBranch={gitBranch}
         showAI={showAI} onToggleAI={() => setShowAI((v) => !v)}
+        workspaceFolders={allRootFolders}
       />
     </div>
   );
